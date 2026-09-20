@@ -8,25 +8,45 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [setupMode, setSetupMode] = useState(false);
+  const [success, setSuccess] = useState('');
   const router = useRouter();
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    setSuccess('');
     setLoading(true);
 
-    // 🔧 مؤقتًا — login وهمي (هنربطه بالباك إند قريب)
-    setTimeout(() => {
-      if (username && password) {
-        // احفظ توكن وهمي مؤقت
-        localStorage.setItem('staffToken', 'demo-token-' + Date.now());
-        localStorage.setItem('staffExpires', String(Date.now() + 24 * 60 * 60 * 1000));
-        router.push('/dashboard');
-      } else {
-        setError('Invalid username or password.');
-        setLoading(false);
+    try {
+      const url = setupMode ? '/api/auth/setup' : '/api/auth/login';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      setLoading(false);
+
+      if (!data.ok) {
+        setError(data.error || 'Failed');
+        return;
       }
-    }, 800);
+
+      if (setupMode) {
+        setSuccess('✅ Admin created! You can login now.');
+        setSetupMode(false);
+        setPassword('');
+        return;
+      }
+
+      localStorage.setItem('staffToken', data.token);
+      localStorage.setItem('staffExpires', String(data.expiresAt));
+      router.push('/dashboard');
+    } catch (err: any) {
+      setLoading(false);
+      setError(err.message || 'Network error');
+    }
   }
 
   return (
@@ -51,12 +71,16 @@ export default function LoginPage() {
             <circle cx="122" cy="108" r="8" fill="currentColor"/>
           </svg>
         </div>
-        <h1>Staff Login</h1>
-        <p className="sub">Enter your credentials to access the Dashboard</p>
 
-        {error && (
-          <div className="alert alert-error">{error}</div>
-        )}
+        <h1>{setupMode ? 'Create Admin' : 'Staff Login'}</h1>
+        <p className="sub">
+          {setupMode
+            ? 'First-time setup — create the admin account'
+            : 'Enter your credentials to access the Dashboard'}
+        </p>
+
+        {error && <div className="alert alert-error">{error}</div>}
+        {success && <div className="alert alert-success">{success}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="field">
@@ -85,9 +109,30 @@ export default function LoginPage() {
             style={{ width: '100%', marginTop: 8 }}
             disabled={loading}
           >
-            {loading ? 'Logging in...' : 'Login →'}
+            {loading ? 'Please wait…' : setupMode ? 'Create Admin' : 'Login →'}
           </button>
         </form>
+
+        <button
+          type="button"
+          onClick={() => {
+            setSetupMode(!setupMode);
+            setError('');
+            setSuccess('');
+          }}
+          style={{
+            width: '100%',
+            marginTop: 16,
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--muted)',
+            fontSize: 12,
+            cursor: 'pointer',
+            textDecoration: 'underline',
+          }}
+        >
+          {setupMode ? 'Already have an account? Login' : 'First time? Create admin account'}
+        </button>
       </div>
     </div>
   );

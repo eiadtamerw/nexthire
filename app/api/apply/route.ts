@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { addCandidateToSheet } from '../../../lib/sheets';
+import { addCandidateToSheet } from '../../../../lib/sheets';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Validation أساسي
     if (!body.tripleName || !body.nationalId || !body.phone) {
       return NextResponse.json(
         { ok: false, error: 'Missing required fields' },
@@ -37,7 +36,7 @@ export async function POST(request: Request) {
       interviewTime: body.interviewTime || '',
     });
 
-    return NextResponse.json({ ok: true, message: 'Application received' });
+    return NextResponse.json({ ok: true });
   } catch (e: any) {
     console.error('Error adding candidate:', e);
     return NextResponse.json(

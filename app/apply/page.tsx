@@ -1,6 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+type Offer = {
+  rowIndex: number;
+  id: string;
+  jobTitle: string;
+  companyName: string;
+};
 
 export default function ApplyPage() {
   const [formData, setFormData] = useState({
@@ -31,9 +38,35 @@ export default function ApplyPage() {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [offers, setOffers] = useState<Offer[]>([]);
+  const [offersLoading, setOffersLoading] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/offers')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) {
+          const openOffers = data.offers.filter(
+            (o: any) => (o.status || '').toLowerCase() === 'open'
+          );
+          setOffers(openOffers);
+        }
+      })
+      .catch((e) => console.error('Failed to load offers:', e))
+      .finally(() => setOffersLoading(false));
+  }, []);
 
   function updateField(name: string, value: string) {
     setFormData((prev) => ({ ...prev, [name]: value }));
+  }
+
+  function handleOfferSelect(offerId: string) {
+    const selected = offers.find((o) => o.id === offerId);
+    setFormData((prev) => ({
+      ...prev,
+      appliedOfferId: offerId,
+      appliedOfferTitle: selected ? selected.jobTitle : '',
+    }));
   }
 
   function calcAge(nid: string) {
@@ -79,7 +112,6 @@ export default function ApplyPage() {
     e.preventDefault();
     setError('');
 
-    // Validation
     if (!formData.tripleName || !formData.nationalId || !formData.phone) {
       setError('Please fill in all required fields.');
       return;
@@ -93,7 +125,6 @@ export default function ApplyPage() {
       return;
     }
 
-    // Build language string
     const langParts: string[] = [];
     languages.forEach((l) => {
       if (l.lang) langParts.push(l.lang + (l.lvl ? ' - ' + l.lvl : ''));
@@ -105,11 +136,7 @@ export default function ApplyPage() {
       return;
     }
 
-    const payload = {
-      ...formData,
-      language: finalLanguage,
-    };
-
+    const payload = { ...formData, language: finalLanguage };
     setLoading(true);
 
     try {
@@ -118,15 +145,12 @@ export default function ApplyPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
-
       const data = await res.json();
-
       if (!data.ok) {
         setError(data.error || 'Failed to submit application.');
         setLoading(false);
         return;
       }
-
       setSubmitted(true);
       setLoading(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -168,12 +192,16 @@ export default function ApplyPage() {
   if (submitted) {
     return (
       <div className="form-wrap">
-        <div className="alert alert-success" style={{ marginTop: 40, padding: 30, textAlign: 'center' }}>
+        <div
+          className="alert alert-success"
+          style={{ marginTop: 40, padding: 30, textAlign: 'center' }}
+        >
           <h2 style={{ marginBottom: 12, fontSize: 24, fontWeight: 800 }}>
             ✅ Application Received!
           </h2>
           <p style={{ marginBottom: 20 }}>
-            Thank you, <strong>{formData.tripleName}</strong>. We&apos;ve received your application.
+            Thank you, <strong>{formData.tripleName}</strong>. We&apos;ve received your
+            application.
           </p>
           <button className="btn btn-primary" onClick={resetForm}>
             Submit Another Application
@@ -195,28 +223,41 @@ export default function ApplyPage() {
       {error && <div className="alert alert-error">{error}</div>}
 
       <form onSubmit={handleSubmit}>
-        {/* Position & Interview */}
         <div className="form-section">
           <h3>
             <span className="dot"></span> Position & Interview
           </h3>
 
           <div className="field">
-            <label>Position you&apos;re applying for</label>
+            <label>
+              Position you&apos;re applying for <span className="req">*</span>
+            </label>
             <select
               value={formData.appliedOfferId}
-              onChange={(e) => updateField('appliedOfferId', e.target.value)}
+              onChange={(e) => handleOfferSelect(e.target.value)}
+              required
+              disabled={offersLoading}
             >
-              <option value="">Select a position…</option>
-              <option value="OFF-001">Customer Service Representative</option>
-              <option value="OFF-002">Technical Support</option>
-              <option value="OFF-003">Sales Representative</option>
+              <option value="">
+                {offersLoading
+                  ? 'Loading offers…'
+                  : offers.length === 0
+                  ? 'No open offers available'
+                  : 'Select a position…'}
+              </option>
+              {offers.map((o) => (
+                <option key={o.rowIndex} value={o.id}>
+                  {o.jobTitle} — {o.companyName}
+                </option>
+              ))}
             </select>
           </div>
 
           <div className="field-row">
             <div className="field">
-              <label>Interview Date <span className="req">*</span></label>
+              <label>
+                Interview Date <span className="req">*</span>
+              </label>
               <input
                 type="date"
                 value={formData.interviewDate}
@@ -224,7 +265,9 @@ export default function ApplyPage() {
               />
             </div>
             <div className="field">
-              <label>Interview Time <span className="req">*</span></label>
+              <label>
+                Interview Time <span className="req">*</span>
+              </label>
               <input
                 type="text"
                 placeholder="e.g. Monday 3pm to 5pm"
@@ -235,14 +278,15 @@ export default function ApplyPage() {
           </div>
         </div>
 
-        {/* Personal Info */}
         <div className="form-section">
           <h3>
             <span className="dot"></span> Personal Information
           </h3>
 
           <div className="field">
-            <label>Triple Name <span className="req">*</span></label>
+            <label>
+              Triple Name <span className="req">*</span>
+            </label>
             <input
               type="text"
               placeholder="Your full triple name"
@@ -253,7 +297,9 @@ export default function ApplyPage() {
 
           <div className="field-row">
             <div className="field">
-              <label>National ID <span className="req">*</span></label>
+              <label>
+                National ID <span className="req">*</span>
+              </label>
               <input
                 type="text"
                 maxLength={14}
@@ -267,13 +313,15 @@ export default function ApplyPage() {
             </div>
             <div className="field">
               <label>Age (auto)</label>
-              <input type="text" readOnly value={formData.age} placeholder="Calculated automatically" />
+              <input type="text" readOnly value={formData.age} placeholder="Calculated" />
             </div>
           </div>
 
           <div className="field-row-3">
             <div className="field">
-              <label>Phone <span className="req">*</span></label>
+              <label>
+                Phone <span className="req">*</span>
+              </label>
               <input
                 type="tel"
                 placeholder="01xxxxxxxxx"
@@ -282,7 +330,9 @@ export default function ApplyPage() {
               />
             </div>
             <div className="field">
-              <label>WhatsApp <span className="req">*</span></label>
+              <label>
+                WhatsApp <span className="req">*</span>
+              </label>
               <input
                 type="tel"
                 placeholder="01xxxxxxxxx"
@@ -291,7 +341,9 @@ export default function ApplyPage() {
               />
             </div>
             <div className="field">
-              <label>Nationality <span className="req">*</span></label>
+              <label>
+                Nationality <span className="req">*</span>
+              </label>
               <select
                 value={formData.nationality}
                 onChange={(e) => updateField('nationality', e.target.value)}
@@ -310,7 +362,9 @@ export default function ApplyPage() {
           </div>
 
           <div className="field">
-            <label>Gmail <span className="req">*</span></label>
+            <label>
+              Gmail <span className="req">*</span>
+            </label>
             <input
               type="email"
               placeholder="example@gmail.com"
@@ -320,7 +374,6 @@ export default function ApplyPage() {
           </div>
         </div>
 
-        {/* Education */}
         <div className="form-section">
           <h3>
             <span className="dot"></span> Education & Status
@@ -328,7 +381,9 @@ export default function ApplyPage() {
 
           <div className="field-row">
             <div className="field">
-              <label>College <span className="req">*</span></label>
+              <label>
+                College <span className="req">*</span>
+              </label>
               <input
                 type="text"
                 placeholder="College / Degree"
@@ -337,7 +392,9 @@ export default function ApplyPage() {
               />
             </div>
             <div className="field">
-              <label>Site <span className="req">*</span></label>
+              <label>
+                Site <span className="req">*</span>
+              </label>
               <input
                 type="text"
                 placeholder="City / Location"
@@ -349,7 +406,9 @@ export default function ApplyPage() {
 
           <div className="field-row">
             <div className="field">
-              <label>Status <span className="req">*</span></label>
+              <label>
+                Status <span className="req">*</span>
+              </label>
               <select
                 value={formData.status}
                 onChange={(e) => updateField('status', e.target.value)}
@@ -362,7 +421,9 @@ export default function ApplyPage() {
               </select>
             </div>
             <div className="field">
-              <label>Military Status <span className="req">*</span></label>
+              <label>
+                Military Status <span className="req">*</span>
+              </label>
               <select
                 value={formData.military}
                 onChange={(e) => updateField('military', e.target.value)}
@@ -377,7 +438,6 @@ export default function ApplyPage() {
           </div>
         </div>
 
-        {/* Languages */}
         <div className="form-section">
           <h3>
             <span className="dot"></span> Language & Level
@@ -389,7 +449,10 @@ export default function ApplyPage() {
                 <label>
                   Language {i + 1} <span className="req">*</span>
                 </label>
-                <select value={lang.lang} onChange={(e) => updateLanguage(i, 'lang', e.target.value)}>
+                <select
+                  value={lang.lang}
+                  onChange={(e) => updateLanguage(i, 'lang', e.target.value)}
+                >
                   <option value="">Select…</option>
                   <option>English</option>
                   <option>Arabic</option>
@@ -404,7 +467,10 @@ export default function ApplyPage() {
                 <label>
                   Level {i + 1} <span className="req">*</span>
                 </label>
-                <select value={lang.lvl} onChange={(e) => updateLanguage(i, 'lvl', e.target.value)}>
+                <select
+                  value={lang.lvl}
+                  onChange={(e) => updateLanguage(i, 'lvl', e.target.value)}
+                >
                   <option value="">Select…</option>
                   <option>A1</option>
                   <option>A2</option>
@@ -443,7 +509,6 @@ export default function ApplyPage() {
           ))}
         </div>
 
-        {/* Experience */}
         <div className="form-section">
           <h3>
             <span className="dot"></span> Experience
@@ -451,7 +516,8 @@ export default function ApplyPage() {
 
           <div className="field">
             <label>
-              Applied to this company in the last 3 months? <span className="req">*</span>
+              Applied to this company in the last 3 months?{' '}
+              <span className="req">*</span>
             </label>
             <div className="radio-group">
               {['Yes', 'No'].map((opt) => (
@@ -476,7 +542,8 @@ export default function ApplyPage() {
 
           <div className="field">
             <label>
-              Call Center / Telesales / Cold Calling Experience? <span className="req">*</span>
+              Call Center / Telesales / Cold Calling Experience?{' '}
+              <span className="req">*</span>
             </label>
             <div className="radio-group">
               {['Yes', 'No'].map((opt) => (
@@ -508,7 +575,6 @@ export default function ApplyPage() {
           </div>
         </div>
 
-        {/* Voice & CV */}
         <div className="form-section">
           <h3>
             <span className="dot"></span> Voice Recording & CV

@@ -5,6 +5,7 @@ import { useState } from 'react';
 export default function ApplyPage() {
   const [formData, setFormData] = useState({
     appliedOfferId: '',
+    appliedOfferTitle: '',
     interviewDate: '',
     interviewTime: '',
     tripleName: '',
@@ -29,6 +30,7 @@ export default function ApplyPage() {
   const [languages, setLanguages] = useState([{ lang: '', lvl: '' }]);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   function updateField(name: string, value: string) {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -73,11 +75,11 @@ export default function ApplyPage() {
     setLanguages(languages.filter((_, i) => i !== index));
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
-    // Basic validation
+    // Validation
     if (!formData.tripleName || !formData.nationalId || !formData.phone) {
       setError('Please fill in all required fields.');
       return;
@@ -85,13 +87,6 @@ export default function ApplyPage() {
     if (formData.nationalId.length !== 14) {
       setError('National ID must be exactly 14 digits.');
       return;
-    }
-    if (!formData.language) {
-      const lang = languages[0];
-      if (!lang.lang || !lang.lvl) {
-        setError('Please select at least one language and level.');
-        return;
-      }
     }
     if (!formData.vocaroo) {
       setError('Vocaroo link is required.');
@@ -105,12 +100,69 @@ export default function ApplyPage() {
     });
     const finalLanguage = langParts.join(', ');
 
-    // 🎯 هنا هنبعت البيانات للـ API بعدين
-    console.log('Form data:', { ...formData, language: finalLanguage });
+    if (!finalLanguage) {
+      setError('Please select at least one language.');
+      return;
+    }
 
-    // Show success
-    setSubmitted(true);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const payload = {
+      ...formData,
+      language: finalLanguage,
+    };
+
+    setLoading(true);
+
+    try {
+      const res = await fetch('/api/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!data.ok) {
+        setError(data.error || 'Failed to submit application.');
+        setLoading(false);
+        return;
+      }
+
+      setSubmitted(true);
+      setLoading(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err: any) {
+      setError(err.message || 'Network error. Please try again.');
+      setLoading(false);
+    }
+  }
+
+  function resetForm() {
+    setFormData({
+      appliedOfferId: '',
+      appliedOfferTitle: '',
+      interviewDate: '',
+      interviewTime: '',
+      tripleName: '',
+      nationalId: '',
+      age: '',
+      phone: '',
+      whatsapp: '',
+      nationality: '',
+      gmail: '',
+      college: '',
+      site: '',
+      status: '',
+      military: '',
+      language: '',
+      experience: '',
+      appliedLast3Months: '',
+      companyName: '',
+      vocaroo: '',
+      cv: '',
+    });
+    setLanguages([{ lang: '', lvl: '' }]);
+    setSubmitted(false);
+    setError('');
   }
 
   if (submitted) {
@@ -123,35 +175,7 @@ export default function ApplyPage() {
           <p style={{ marginBottom: 20 }}>
             Thank you, <strong>{formData.tripleName}</strong>. We&apos;ve received your application.
           </p>
-          <button
-            className="btn btn-primary"
-            onClick={() => {
-              setSubmitted(false);
-              setFormData({
-                appliedOfferId: '',
-                interviewDate: '',
-                interviewTime: '',
-                tripleName: '',
-                nationalId: '',
-                age: '',
-                phone: '',
-                whatsapp: '',
-                nationality: '',
-                gmail: '',
-                college: '',
-                site: '',
-                status: '',
-                military: '',
-                language: '',
-                experience: '',
-                appliedLast3Months: '',
-                companyName: '',
-                vocaroo: '',
-                cv: '',
-              });
-              setLanguages([{ lang: '', lvl: '' }]);
-            }}
-          >
+          <button className="btn btn-primary" onClick={resetForm}>
             Submit Another Application
           </button>
         </div>
@@ -171,7 +195,6 @@ export default function ApplyPage() {
       {error && <div className="alert alert-error">{error}</div>}
 
       <form onSubmit={handleSubmit}>
-
         {/* Position & Interview */}
         <div className="form-section">
           <h3>
@@ -185,9 +208,9 @@ export default function ApplyPage() {
               onChange={(e) => updateField('appliedOfferId', e.target.value)}
             >
               <option value="">Select a position…</option>
-              <option value="demo-1">Customer Service Representative</option>
-              <option value="demo-2">Technical Support</option>
-              <option value="demo-3">Sales Representative</option>
+              <option value="OFF-001">Customer Service Representative</option>
+              <option value="OFF-002">Technical Support</option>
+              <option value="OFF-003">Sales Representative</option>
             </select>
           </div>
 
@@ -363,7 +386,9 @@ export default function ApplyPage() {
           {languages.map((lang, i) => (
             <div key={i} className="field-row-3" style={{ marginBottom: 12 }}>
               <div className="field" style={{ marginBottom: 0 }}>
-                <label>Language {i + 1} <span className="req">*</span></label>
+                <label>
+                  Language {i + 1} <span className="req">*</span>
+                </label>
                 <select value={lang.lang} onChange={(e) => updateLanguage(i, 'lang', e.target.value)}>
                   <option value="">Select…</option>
                   <option>English</option>
@@ -376,7 +401,9 @@ export default function ApplyPage() {
                 </select>
               </div>
               <div className="field" style={{ marginBottom: 0 }}>
-                <label>Level {i + 1} <span className="req">*</span></label>
+                <label>
+                  Level {i + 1} <span className="req">*</span>
+                </label>
                 <select value={lang.lvl} onChange={(e) => updateLanguage(i, 'lvl', e.target.value)}>
                   <option value="">Select…</option>
                   <option>A1</option>
@@ -388,13 +415,26 @@ export default function ApplyPage() {
                   <option>Native</option>
                 </select>
               </div>
-              <div className="field" style={{ marginBottom: 0, display: 'flex', alignItems: 'flex-end' }}>
+              <div
+                className="field"
+                style={{ marginBottom: 0, display: 'flex', alignItems: 'flex-end' }}
+              >
                 {i === 0 ? (
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ width: '100%' }} onClick={addLanguage}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{ width: '100%' }}
+                    onClick={addLanguage}
+                  >
                     + Add Language
                   </button>
                 ) : (
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ width: '100%' }} onClick={() => removeLanguage(i)}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    style={{ width: '100%' }}
+                    onClick={() => removeLanguage(i)}
+                  >
                     Remove
                   </button>
                 )}
@@ -410,12 +450,16 @@ export default function ApplyPage() {
           </h3>
 
           <div className="field">
-            <label>Applied to this company in the last 3 months? <span className="req">*</span></label>
+            <label>
+              Applied to this company in the last 3 months? <span className="req">*</span>
+            </label>
             <div className="radio-group">
               {['Yes', 'No'].map((opt) => (
                 <label
                   key={opt}
-                  className={'radio-chip' + (formData.appliedLast3Months === opt ? ' on' : '')}
+                  className={
+                    'radio-chip' + (formData.appliedLast3Months === opt ? ' on' : '')
+                  }
                 >
                   <input
                     type="radio"
@@ -431,7 +475,9 @@ export default function ApplyPage() {
           </div>
 
           <div className="field">
-            <label>Call Center / Telesales / Cold Calling Experience? <span className="req">*</span></label>
+            <label>
+              Call Center / Telesales / Cold Calling Experience? <span className="req">*</span>
+            </label>
             <div className="radio-group">
               {['Yes', 'No'].map((opt) => (
                 <label
@@ -469,7 +515,9 @@ export default function ApplyPage() {
           </h3>
 
           <div className="field">
-            <label>Vocaroo Link <span className="req">*</span></label>
+            <label>
+              Vocaroo Link <span className="req">*</span>
+            </label>
             <input
               type="url"
               placeholder="https://vocaroo.com/..."
@@ -493,8 +541,8 @@ export default function ApplyPage() {
         </div>
 
         <div className="form-actions">
-          <button type="submit" className="btn btn-primary btn-lg">
-            Submit Application
+          <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>
+            {loading ? 'Submitting…' : 'Submit Application'}
           </button>
         </div>
       </form>

@@ -146,3 +146,65 @@ export async function addCandidateToSheet(data: {
 
   return res.data;
 }
+/**
+ * يجيب الكانديدت من تاب Candidates
+ */
+export async function getCandidatesFromSheet() {
+  const rows = await readSheet('Candidates');
+  if (rows.length < 2) return [];
+
+  const data = rows.slice(1);
+
+  return data
+    .filter((row) => row.some((c) => String(c || '').trim() !== ''))
+    .map((row, i) => ({
+      rowIndex: i + 2,
+      timestamp: String(row[0] || ''),
+      tripleName: String(row[1] || ''),
+      phone: String(row[2] || ''),
+      whatsapp: String(row[3] || ''),
+      gmail: String(row[4] || ''),
+      nationality: String(row[5] || ''),
+      site: String(row[6] || ''),
+      language: String(row[7] || ''),
+      age: String(row[8] || ''),
+      college: String(row[9] || ''),
+      status: String(row[10] || ''),
+      military: String(row[11] || ''),
+      appliedLast3Months: String(row[12] || ''),
+      experience: String(row[13] || ''),
+      nationalId: String(row[14] || ''),
+      companyName: String(row[15] || ''),
+      interviewDate: String(row[16] || ''),
+      vocaroo: String(row[17] || ''),
+      cv: String(row[18] || ''),
+      score: Number(row[19]) || 0,
+      appliedOfferId: String(row[20] || ''),
+      appliedOfferTitle: String(row[21] || ''),
+      interviewTime: String(row[22] || ''),
+    }));
+}
+
+/**
+ * إحصائيات الـ Dashboard
+ */
+export async function getDashboardStats() {
+  const [candidates, offers] = await Promise.all([
+    getCandidatesFromSheet(),
+    getOffersFromSheet(),
+  ]);
+
+  const openOffers = offers.filter((o) => (o.status || '').toLowerCase() === 'open');
+  const scheduled = candidates.filter(
+    (c) => c.interviewDate || c.interviewTime
+  ).length;
+
+  return {
+    totalCandidates: candidates.length,
+    totalOffers: offers.length,
+    openOffers: openOffers.length,
+    scheduledInterviews: scheduled,
+    candidates: candidates.slice().reverse().slice(0, 50), // آخر 50
+    offers: openOffers,
+  };
+}

@@ -43,3 +43,6 @@ next-env.d.ts
 # Environment variables
 .env.local
 .env*.local
+diagnose.js
+quicktest.js
+test-sheets.js

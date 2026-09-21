@@ -60,6 +60,9 @@ export default function Nav() {
           {mounted && isAuth && (
             <Link href="/dashboard" className={pathname === '/dashboard' ? 'active' : ''}>Dashboard</Link>
           )}
+                    {mounted && isAuth && (
+            <Link href="/matches" className={pathname === '/matches' ? 'active' : ''}>Matches</Link>
+          )}
 
           {mounted && !isAuth && <Link href="/login">Login</Link>}
 

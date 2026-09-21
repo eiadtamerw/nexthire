@@ -232,6 +232,7 @@ export async function addCandidateToSheet(data: {
   appliedOfferId: string;
   appliedOfferTitle: string;
   interviewTime: string;
+  score?: number;
 }) {
   const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
@@ -253,9 +254,9 @@ export async function addCandidateToSheet(data: {
     data.nationalId,
     data.companyName,
     data.interviewDate,
-    data.vocaroo || data.vocaroo,
+    data.vocaroo,
     data.cv,
-    '',
+    String(data.score ?? ''),
     data.appliedOfferId,
     data.appliedOfferTitle,
     data.interviewTime,

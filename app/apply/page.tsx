@@ -108,7 +108,7 @@ export default function ApplyPage() {
     setLanguages(languages.filter((_, i) => i !== index));
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+    async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
 
@@ -118,6 +118,10 @@ export default function ApplyPage() {
     }
     if (formData.nationalId.length !== 14) {
       setError('National ID must be exactly 14 digits.');
+      return;
+    }
+    if (!formData.appliedOfferId) {
+      setError('Please select a position you are applying for.');
       return;
     }
     if (!formData.vocaroo) {
@@ -146,13 +150,22 @@ export default function ApplyPage() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
-      if (!data.ok) {
-        setError(data.error || 'Failed to submit application.');
-        setLoading(false);
+
+      setLoading(false);
+
+      // ⭐ لو مرفوض
+      if (data.rejected) {
+        setError('❌ ' + (data.error || 'Application rejected'));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         return;
       }
+
+      if (!data.ok) {
+        setError(data.error || 'Failed to submit application.');
+        return;
+      }
+
       setSubmitted(true);
-      setLoading(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: any) {
       setError(err.message || 'Network error. Please try again.');

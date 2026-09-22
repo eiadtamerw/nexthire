@@ -35,7 +35,18 @@ export async function POST(request: Request) {
     const expiresAt = Date.now() + SESSION_TTL_MS;
     await addSessionToSheet(token, user.username, expiresAt);
 
-      return NextResponse.json({ ok: true, token, expiresAt, username: user.username });;
+          const adminUsername = (process.env.ADMIN_USERNAME || '').trim().toLowerCase();
+    const isAdmin =
+      !!adminUsername &&
+      user.username.trim().toLowerCase() === adminUsername;
+
+    return NextResponse.json({
+      ok: true,
+      token,
+      expiresAt,
+      username: user.username,
+      isAdmin,
+    });
   } catch (e: any) {
     console.error('Login error:', e);
     return NextResponse.json(

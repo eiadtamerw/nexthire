@@ -32,6 +32,7 @@ export default function LoginPage() {
       localStorage.setItem('staffToken', data.token);
       localStorage.setItem('staffExpires', String(data.expiresAt));
       localStorage.setItem('staffUsername', data.username);
+      localStorage.setItem('staffIsAdmin', String(!!data.isAdmin));
       router.push('/dashboard');
       router.refresh();
     } catch (err: any) {

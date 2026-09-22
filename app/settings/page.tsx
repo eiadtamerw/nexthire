@@ -10,12 +10,12 @@ type User = {
 
 export default function SettingsPage() {
   const [me, setMe] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const router = useRouter();
 
-  // Change password form
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -23,7 +23,6 @@ export default function SettingsPage() {
   const [pwErr, setPwErr] = useState('');
   const [pwLoading, setPwLoading] = useState(false);
 
-  // Add user form
   const [newUsername, setNewUsername] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [userMsg, setUserMsg] = useState('');
@@ -38,8 +37,9 @@ export default function SettingsPage() {
       return;
     }
 
-    // احفظ الـ username من الـ localStorage (كنا خزّناه في login)
-    // لو مش موجود، نجيب من الـ API
+    const adminFlag = localStorage.getItem('staffIsAdmin') === 'true';
+    setIsAdmin(adminFlag);
+
     fetch('/api/auth/check', {
       headers: { Authorization: 'Bearer ' + t },
     })
@@ -50,7 +50,11 @@ export default function SettingsPage() {
         }
       });
 
-    loadUsers();
+    if (adminFlag) {
+      loadUsers();
+    } else {
+      setLoading(false);
+    }
   }, [router]);
 
   function loadUsers() {
@@ -60,12 +64,7 @@ export default function SettingsPage() {
       headers: { Authorization: 'Bearer ' + t },
     })
       .then((r) => {
-        if (r.status === 401) {
-          localStorage.removeItem('staffToken');
-          localStorage.removeItem('staffExpires');
-          router.push('/login');
-          throw new Error('Unauthorized');
-        }
+        if (r.status === 401) throw new Error('Unauthorized');
         return r.json();
       })
       .then((res) => {
@@ -110,7 +109,7 @@ export default function SettingsPage() {
         return;
       }
 
-      setPwMsg('✅ Password changed successfully');
+      setPwMsg('Password changed successfully');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -157,7 +156,7 @@ export default function SettingsPage() {
         return;
       }
 
-      setUserMsg('✅ User added successfully');
+      setUserMsg('User added successfully');
       setNewUsername('');
       setNewUserPassword('');
       loadUsers();
@@ -192,16 +191,6 @@ export default function SettingsPage() {
     }
   }
 
-  if (loading && !users.length) {
-    return (
-      <div className="section">
-        <div style={{ textAlign: 'center', padding: 80, color: 'var(--muted)' }}>
-          Loading settings…
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="section" style={{ maxWidth: 900 }}>
       <div style={{ marginBottom: 30 }}>
@@ -209,7 +198,7 @@ export default function SettingsPage() {
           Settings
         </h1>
         <p style={{ color: 'var(--muted)', fontSize: 14 }}>
-          Manage your account and staff users
+          {isAdmin ? 'Manage your account and staff users' : 'Manage your account'}
         </p>
       </div>
 
@@ -222,7 +211,26 @@ export default function SettingsPage() {
         </h3>
 
         {pwErr && <div className="alert alert-error">{pwErr}</div>}
-        {pwMsg && <div className="alert alert-success">{pwMsg}</div>}
+        {pwMsg && (
+          <div
+            className="alert alert-success"
+            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            {pwMsg}
+          </div>
+        )}
 
         <form onSubmit={handleChangePassword}>
           <div className="field">
@@ -264,108 +272,150 @@ export default function SettingsPage() {
         </form>
       </div>
 
-      {/* Add New User */}
-      <div className="form-section">
-        <h3>
-          <span className="dot"></span> Add New Staff User
-        </h3>
+      {isAdmin && (
+        <>
+          {/* Add New User */}
+          <div className="form-section">
+            <h3>
+              <span className="dot"></span> Add New Staff User
+            </h3>
 
-        {userErr && <div className="alert alert-error">{userErr}</div>}
-        {userMsg && <div className="alert alert-success">{userMsg}</div>}
+            {userErr && <div className="alert alert-error">{userErr}</div>}
+            {userMsg && (
+              <div
+                className="alert alert-success"
+                style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                {userMsg}
+              </div>
+            )}
 
-        <form onSubmit={handleAddUser}>
-          <div className="field-row">
-            <div className="field">
-              <label>Username</label>
-              <input
-                type="text"
-                value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value)}
-                required
-              />
-            </div>
-            <div className="field">
-              <label>Password (min 6 chars)</label>
-              <input
-                type="password"
-                value={newUserPassword}
-                onChange={(e) => setNewUserPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
+            <form onSubmit={handleAddUser}>
+              <div className="field-row">
+                <div className="field">
+                  <label>Username</label>
+                  <input
+                    type="text"
+                    value={newUsername}
+                    onChange={(e) => setNewUsername(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="field">
+                  <label>Password (min 6 chars)</label>
+                  <input
+                    type="password"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                    required
+                    minLength={6}
+                  />
+                </div>
+              </div>
+              <div className="form-actions">
+                <button type="submit" className="btn btn-primary" disabled={userLoading}>
+                  {userLoading ? 'Adding…' : 'Add User'}
+                </button>
+              </div>
+            </form>
           </div>
-          <div className="form-actions">
-            <button type="submit" className="btn btn-primary" disabled={userLoading}>
-              {userLoading ? 'Adding…' : 'Add User'}
-            </button>
-          </div>
-        </form>
-      </div>
 
-      {/* Users List */}
-      <div className="form-section">
-        <h3>
-          <span className="dot"></span> Staff Users ({users.length})
-        </h3>
+          {/* Users List */}
+          <div className="form-section">
+            <h3>
+              <span className="dot"></span> Staff Users ({users.length})
+            </h3>
 
-        {users.length === 0 ? (
-          <p style={{ color: 'var(--muted)', fontSize: 13 }}>No users yet.</p>
-        ) : (
-          <div className="table-wrap" style={{ border: 'none' }}>
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Username</th>
-                  <th>Created</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u, i) => (
-                  <tr key={u.username}>
-                    <td>{i + 1}</td>
-                    <td>
-                      <strong>{u.username}</strong>
-                      {u.username === me && (
-                        <span
-                          style={{
-                            marginLeft: 8,
-                            padding: '2px 8px',
-                            borderRadius: 999,
-                            fontSize: 10,
-                            fontWeight: 800,
-                            background: 'rgba(198,232,45,0.15)',
-                            color: 'var(--neon)',
-                            border: '1px solid rgba(198,232,45,0.4)',
-                          }}
-                        >
-                          YOU
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ fontSize: 12, color: 'var(--muted)' }}>
-                      {u.created_at ? u.created_at.slice(0, 10) : '—'}
-                    </td>
-                    <td>
-                      {u.username !== me && (
-                        <button
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => handleDeleteUser(u.username)}
-                          type="button"
-                        >
-                          🗑 Delete
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {loading ? (
+              <p style={{ color: 'var(--muted)', fontSize: 13 }}>Loading…</p>
+            ) : users.length === 0 ? (
+              <p style={{ color: 'var(--muted)', fontSize: 13 }}>No users yet.</p>
+            ) : (
+              <div className="table-wrap" style={{ border: 'none' }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Username</th>
+                      <th>Created</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map((u, i) => (
+                      <tr key={u.username}>
+                        <td>{i + 1}</td>
+                        <td>
+                          <strong>{u.username}</strong>
+                          {u.username === me && (
+                            <span
+                              style={{
+                                marginLeft: 8,
+                                padding: '2px 8px',
+                                borderRadius: 999,
+                                fontSize: 10,
+                                fontWeight: 800,
+                                background: 'rgba(198,232,45,0.15)',
+                                color: 'var(--neon)',
+                                border: '1px solid rgba(198,232,45,0.4)',
+                              }}
+                            >
+                              YOU
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ fontSize: 12, color: 'var(--muted)' }}>
+                          {u.created_at ? u.created_at.slice(0, 10) : '—'}
+                        </td>
+                        <td>
+                          {u.username !== me && (
+                            <button
+                              className="btn btn-ghost btn-sm"
+                              onClick={() => handleDeleteUser(u.username)}
+                              type="button"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                            >
+                              <svg
+                                width="14"
+                                height="14"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="2"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <polyline points="3 6 5 6 21 6" />
+                                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                                <path d="M10 11v6" />
+                                <path d="M14 11v6" />
+                                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+                              </svg>
+                              Delete
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

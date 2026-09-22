@@ -342,7 +342,8 @@ export async function addUserToSheet(
 
 export async function findUser(username: string) {
   const users = await getUsersFromSheet();
-  return users.find((u) => u.username === username) || null;
+  const target = String(username || '').trim().toLowerCase();
+  return users.find((u) => u.username.trim().toLowerCase() === target) || null;
 }
 
 /* ============ AUTH: SESSIONS ============ */
@@ -416,4 +417,125 @@ export async function getAuthUser(request: Request) {
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
   if (!token) return null;
   return await findSession(token);
+}
+/**
+ * يحدّث باسورد مستخدم موجود (بالـ rowIndex أو بالـ username)
+ */
+export async function updateUserPassword(
+  username: string,
+  newPasswordHash: string,
+  newSalt: string
+) {
+  const sheets = await getSheetsClient();
+
+  // اقرأ كل الصفوف
+  const rows = await readSheet('Users');
+  if (rows.length < 2) throw new Error('No users found');
+
+  // دور على المستخدم
+  let rowIndex = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0] || '').trim() === username.trim()) {
+      rowIndex = i + 1; // +1 عشان الصفوف 1-indexed (ناقص 1 = الـ A1 notation)
+      break;
+    }
+  }
+  if (rowIndex < 2) throw new Error('User not found');
+
+  // حدّث الصف
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `Users!B${rowIndex}:C${rowIndex}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [[newPasswordHash, newSalt]],
+    },
+  });
+
+  return { ok: true };
+}
+
+/**
+ * يمسح مستخدم (مع كل الـ sessions بتاعته)
+ */
+export async function deleteUserFromSheet(username: string) {
+  const sheets = await getSheetsClient();
+
+  // 1. امسح اليوزر
+  const rows = await readSheet('Users');
+  let userRowIndex = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0] || '').trim() === username.trim()) {
+      userRowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (userRowIndex >= 2) {
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+    const usersSheet = spreadsheet.data.sheets?.find(
+      (s) => s.properties?.title === 'Users'
+    );
+    const sheetId = usersSheet?.properties?.sheetId;
+    if (sheetId !== undefined && sheetId !== null) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        requestBody: {
+          requests: [
+            {
+              deleteDimension: {
+                range: {
+                  sheetId,
+                  dimension: 'ROWS',
+                  startIndex: userRowIndex - 1,
+                  endIndex: userRowIndex,
+                },
+              },
+            },
+          ],
+        },
+      });
+    }
+  }
+
+  // 2. امسح الـ sessions بتاعته
+  const sessions = await getSessionsFromSheet();
+  const userSessions = sessions.filter((s) => s.username === username);
+
+  if (userSessions.length > 0) {
+    const spreadsheet = await sheets.spreadsheets.get({
+      spreadsheetId: SPREADSHEET_ID,
+    });
+    const sessionsSheet = spreadsheet.data.sheets?.find(
+      (s) => s.properties?.title === 'Sessions'
+    );
+    const sessionsSheetId = sessionsSheet?.properties?.sheetId;
+
+    if (sessionsSheetId !== undefined && sessionsSheetId !== null) {
+      // رتب الـ sessions تنازلي عشان الحذف ميبوظش الـ indices
+      const sortedIndices = userSessions
+        .map((s) => s.rowIndex)
+        .sort((a, b) => b - a);
+
+      const requests = sortedIndices.map((idx) => ({
+        deleteDimension: {
+          range: {
+            sheetId: sessionsSheetId,
+            dimension: 'ROWS' as const,
+            startIndex: idx - 1,
+            endIndex: idx,
+          },
+        },
+      }));
+
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        requestBody: { requests },
+      });
+    }
+  }
+
+  return { ok: true };
 }

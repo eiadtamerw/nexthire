@@ -6,16 +6,31 @@ import { useRouter, usePathname } from 'next/navigation';
 
 export default function Nav() {
   const [isAuth, setIsAuth] = useState(false);
+  const [username, setUsername] = useState('');
   const [mounted, setMounted] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
     const t = localStorage.getItem('staffToken');
     const exp = Number(localStorage.getItem('staffExpires') || 0);
+    const u = localStorage.getItem('staffUsername') || '';
     setIsAuth(!!t && exp > Date.now());
+    setUsername(u);
     setMounted(true);
   }, [pathname]);
+
+  // اقفل القايمة عند أي click برة
+  useEffect(() => {
+    function handleClick() {
+      setMenuOpen(false);
+    }
+    if (menuOpen) {
+      window.addEventListener('click', handleClick);
+      return () => window.removeEventListener('click', handleClick);
+    }
+  }, [menuOpen]);
 
   async function logoutNow() {
     const token = localStorage.getItem('staffToken');
@@ -30,9 +45,12 @@ export default function Nav() {
     }
     localStorage.removeItem('staffToken');
     localStorage.removeItem('staffExpires');
+    localStorage.removeItem('staffUsername');
     router.push('/');
     router.refresh();
   }
+
+  const initial = username ? username.charAt(0).toUpperCase() : '?';
 
   return (
     <nav className="nav">
@@ -60,21 +78,47 @@ export default function Nav() {
           {mounted && isAuth && (
             <Link href="/dashboard" className={pathname === '/dashboard' ? 'active' : ''}>Dashboard</Link>
           )}
-                    {mounted && isAuth && (
+          {mounted && isAuth && (
             <Link href="/matches" className={pathname === '/matches' ? 'active' : ''}>Matches</Link>
           )}
 
           {mounted && !isAuth && <Link href="/login">Login</Link>}
 
+          {/* Avatar dropdown */}
           {mounted && isAuth && (
-            <button
-              onClick={logoutNow}
-              className="btn btn-ghost btn-sm"
-              style={{ border: '1px solid var(--border)' }}
-              type="button"
-            >
-              Logout
-            </button>
+            <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => setMenuOpen(!menuOpen)}
+                className="nav-avatar"
+                title={username}
+              >
+                {initial}
+              </button>
+
+              {menuOpen && (
+                <div className="nav-avatar-menu">
+                  <div className="nav-avatar-menu-header">
+                    <div className="nav-avatar-menu-name">{username}</div>
+                    <div className="nav-avatar-menu-sub">Signed in</div>
+                  </div>
+                  <Link
+                    href="/settings"
+                    className="nav-avatar-menu-item"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    ⚙️ Settings
+                  </Link>
+                  <button
+                    type="button"
+                    className="nav-avatar-menu-item nav-avatar-menu-logout"
+                    onClick={logoutNow}
+                  >
+                    🚪 Logout
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           <Link href="/apply" className="btn btn-primary btn-sm">Apply Now</Link>

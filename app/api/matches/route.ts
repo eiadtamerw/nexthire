@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import {
   getCandidatesFromSheet,
@@ -22,11 +23,10 @@ export async function GET(request: Request) {
       (o) => (o.status || '').toLowerCase() === 'open'
     );
 
-    // لكل عرض، احسب الكانديدت المؤهلين
     const offerMatches = openOffers.map((offer) => {
       const qualified = candidates
         .map((cand) => {
-          const result = evaluateCandidateForOffer(cand, offer);
+          const result = evaluateCandidateForOffer(cand as any, offer as any);
           return {
             candidate: cand,
             score: result.score,
@@ -44,7 +44,6 @@ export async function GET(request: Request) {
       };
     });
 
-    // إحصائيات عامة
     const totalMatches = offerMatches.reduce(
       (sum, om) => sum + om.qualifiedCount,
       0

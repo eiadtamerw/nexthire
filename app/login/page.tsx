@@ -8,19 +8,15 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [setupMode, setSetupMode] = useState(false);
-  const [success, setSuccess] = useState('');
   const router = useRouter();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
-    setSuccess('');
     setLoading(true);
 
     try {
-      const url = setupMode ? '/api/auth/setup' : '/api/auth/login';
-      const res = await fetch(url, {
+      const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -29,20 +25,15 @@ export default function LoginPage() {
       setLoading(false);
 
       if (!data.ok) {
-        setError(data.error || 'Failed');
-        return;
-      }
-
-      if (setupMode) {
-        setSuccess('✅ Admin created! You can login now.');
-        setSetupMode(false);
-        setPassword('');
+        setError(data.error || 'Login failed');
         return;
       }
 
       localStorage.setItem('staffToken', data.token);
       localStorage.setItem('staffExpires', String(data.expiresAt));
+      localStorage.setItem('staffUsername', data.username);
       router.push('/dashboard');
+      router.refresh();
     } catch (err: any) {
       setLoading(false);
       setError(err.message || 'Network error');
@@ -72,15 +63,10 @@ export default function LoginPage() {
           </svg>
         </div>
 
-        <h1>{setupMode ? 'Create Admin' : 'Staff Login'}</h1>
-        <p className="sub">
-          {setupMode
-            ? 'First-time setup — create the admin account'
-            : 'Enter your credentials to access the Dashboard'}
-        </p>
+        <h1>Staff Login</h1>
+        <p className="sub">Enter your credentials to access the Dashboard</p>
 
         {error && <div className="alert alert-error">{error}</div>}
-        {success && <div className="alert alert-success">{success}</div>}
 
         <form onSubmit={handleSubmit}>
           <div className="field">
@@ -109,30 +95,9 @@ export default function LoginPage() {
             style={{ width: '100%', marginTop: 8 }}
             disabled={loading}
           >
-            {loading ? 'Please wait…' : setupMode ? 'Create Admin' : 'Login →'}
+            {loading ? 'Please wait…' : 'Login →'}
           </button>
         </form>
-
-        <button
-          type="button"
-          onClick={() => {
-            setSetupMode(!setupMode);
-            setError('');
-            setSuccess('');
-          }}
-          style={{
-            width: '100%',
-            marginTop: 16,
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--muted)',
-            fontSize: 12,
-            cursor: 'pointer',
-            textDecoration: 'underline',
-          }}
-        >
-          {setupMode ? 'Already have an account? Login' : 'First time? Create admin account'}
-        </button>
       </div>
     </div>
   );

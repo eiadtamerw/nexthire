@@ -39,6 +39,66 @@ type DashboardData = {
   offers: any[];
 };
 
+/* ============ SVG ICONS ============ */
+const IconCalendar = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2" />
+    <line x1="16" y1="2" x2="16" y2="6" />
+    <line x1="8" y1="2" x2="8" y2="6" />
+    <line x1="3" y1="10" x2="21" y2="10" />
+  </svg>
+);
+
+const IconClock = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </svg>
+);
+
+const IconPhone = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+  </svg>
+);
+
+const IconMail = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+    <polyline points="22,6 12,13 2,6" />
+  </svg>
+);
+
+const IconWhatsapp = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+  </svg>
+);
+
+const IconMic = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+    <line x1="12" y1="19" x2="12" y2="23" />
+    <line x1="8" y1="23" x2="16" y2="23" />
+  </svg>
+);
+
+const IconFile = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+  </svg>
+);
+
+const IconTarget = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <circle cx="12" cy="12" r="6" />
+    <circle cx="12" cy="12" r="2" />
+  </svg>
+);
+
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,8 +138,8 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="section">
-        <div style={{ textAlign: 'center', padding: 80 }}>
-          <p style={{ color: 'var(--muted)' }}>Loading dashboard…</p>
+        <div style={{ textAlign: 'center', padding: 80, color: 'var(--muted)' }}>
+          Loading dashboard…
         </div>
       </div>
     );
@@ -110,11 +170,7 @@ export default function DashboardPage() {
 
       <div className="grid grid-4" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         <KpiCard icon="users" value={data.totalCandidates} label="Candidates" />
-        <KpiCard
-          icon="calendar"
-          value={data.scheduledInterviews}
-          label="Scheduled Interviews"
-        />
+        <KpiCard icon="calendar" value={data.scheduledInterviews} label="Scheduled Interviews" />
         <KpiCard icon="briefcase" value={data.openOffers} label="Open Offers" />
         <KpiCard icon="chart" value={data.totalOffers} label="Total Offers" />
       </div>
@@ -215,7 +271,6 @@ function CandidatesTab({
   if (candidates.length === 0) {
     return (
       <div style={{ padding: 60, textAlign: 'center', color: 'var(--muted)' }}>
-        <p style={{ fontSize: 44, marginBottom: 12 }}>👥</p>
         <p>No candidates yet.</p>
       </div>
     );
@@ -240,9 +295,9 @@ function CandidatesTab({
         </thead>
         <tbody>
           {candidates.map((c, i) => {
-            const parts: string[] = [];
-            if (c.interviewDate) parts.push('📅 ' + c.interviewDate);
-            if (c.interviewTime) parts.push('🕒 ' + c.interviewTime);
+            const parts: { icon: 'calendar' | 'clock'; text: string }[] = [];
+            if (c.interviewDate) parts.push({ icon: 'calendar', text: c.interviewDate });
+            if (c.interviewTime) parts.push({ icon: 'clock', text: c.interviewTime });
 
             return (
               <tr key={c.rowIndex}>
@@ -260,7 +315,8 @@ function CandidatesTab({
                     <span
                       style={{
                         display: 'inline-flex',
-                        gap: 6,
+                        gap: 8,
+                        alignItems: 'center',
                         padding: '5px 10px',
                         borderRadius: 8,
                         background: 'rgba(198,232,45,0.15)',
@@ -271,7 +327,15 @@ function CandidatesTab({
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      {parts.join('  ·  ')}
+                      {parts.map((p, pi) => (
+                        <span
+                          key={pi}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                        >
+                          {p.icon === 'calendar' ? <IconCalendar /> : <IconClock />}
+                          {p.text}
+                        </span>
+                      ))}
                     </span>
                   ) : (
                     <span style={{ color: 'var(--muted)', fontSize: 12 }}>Not set</span>
@@ -309,7 +373,6 @@ function OffersTab({ offers }: { offers: any[] }) {
   if (offers.length === 0) {
     return (
       <div style={{ padding: 60, textAlign: 'center', color: 'var(--muted)' }}>
-        <p style={{ fontSize: 44, marginBottom: 12 }}>💼</p>
         <p>No open offers yet.</p>
       </div>
     );
@@ -333,16 +396,16 @@ function OffersTab({ offers }: { offers: any[] }) {
             {o.companyName}
           </div>
           <div className="offer-meta">
-            {o.site && <span>📍 {o.site}</span>}
+            {o.site && <span>{o.site}</span>}
             {o.requiredLanguage && (
               <span>
-                🗣 {o.requiredLanguage}
+                {o.requiredLanguage}
                 {o.requiredLevel && ` · ${o.requiredLevel}`}
               </span>
             )}
             {(o.minAge || o.maxAge) && (
               <span>
-                🎂 {o.minAge}–{o.maxAge}
+                {o.minAge}–{o.maxAge}
               </span>
             )}
           </div>
@@ -372,7 +435,6 @@ function CandidateModal({
 }) {
   const c = candidate;
 
-  // Match with open offers
   const matches = offers
     .map((o) => {
       const checks: { name: string; pass: boolean }[] = [];
@@ -491,8 +553,10 @@ function CandidateModal({
               href={c.vocaroo}
               target="_blank"
               rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              🎙 Vocaroo
+              <IconMic />
+              Vocaroo
             </a>
           )}
           {c.cv && (
@@ -501,8 +565,10 @@ function CandidateModal({
               href={c.cv}
               target="_blank"
               rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              📄 CV
+              <IconFile />
+              CV
             </a>
           )}
           {waNumber && (
@@ -511,8 +577,10 @@ function CandidateModal({
               href={`https://wa.me/${waNumber}`}
               target="_blank"
               rel="noopener noreferrer"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
             >
-              💬 WhatsApp
+              <IconWhatsapp />
+              WhatsApp
             </a>
           )}
         </div>
@@ -553,9 +621,13 @@ function CandidateModal({
             textTransform: 'uppercase',
             letterSpacing: '0.06em',
             color: 'var(--neon)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
           }}
         >
-          🎯 Match with Open Offers ({matches.length})
+          <IconTarget />
+          Match with Open Offers ({matches.length})
         </h4>
 
         {matches.length === 0 ? (

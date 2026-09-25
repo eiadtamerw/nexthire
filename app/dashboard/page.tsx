@@ -1,6 +1,7 @@
 'use client';
-
-import { useEffect, useState } from 'react';
+import { buildWhatsAppMessage, buildWhatsAppLink } from '@/lib/whatsapp';
+import DashboardCharts from '@/components/DashboardCharts';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 
 type Candidate = {
@@ -28,6 +29,8 @@ type Candidate = {
   appliedOfferId: string;
   appliedOfferTitle: string;
   interviewTime: string;
+  candidateStatus: string;
+  notes: string;
 };
 
 type DashboardData = {
@@ -38,6 +41,8 @@ type DashboardData = {
   candidates: Candidate[];
   offers: any[];
 };
+
+type SortKey = 'newest' | 'oldest' | 'score-desc' | 'score-asc' | 'name-asc' | 'name-desc';
 
 /* ============ SVG ICONS ============ */
 const IconCalendar = () => (
@@ -56,22 +61,25 @@ const IconClock = () => (
   </svg>
 );
 
-const IconPhone = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+const IconSearch = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
   </svg>
 );
 
-const IconMail = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-    <polyline points="22,6 12,13 2,6" />
+const IconDownload = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
   </svg>
 );
 
-const IconWhatsapp = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+const IconX = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 
@@ -91,6 +99,12 @@ const IconFile = () => (
   </svg>
 );
 
+const IconWhatsapp = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+  </svg>
+);
+
 const IconTarget = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="10" />
@@ -99,13 +113,138 @@ const IconTarget = () => (
   </svg>
 );
 
+const IconClipboard = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <rect x="8" y="2" width="8" height="4" rx="1" />
+  </svg>
+);
+
+const IconSave = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+    <polyline points="17 21 17 13 7 13 7 21" />
+    <polyline points="7 3 7 8 15 8" />
+  </svg>
+);
+
+/* ============ HELPERS ============ */
+function csvEscape(v: any): string {
+  const s = String(v ?? '');
+  if (s.includes(',') || s.includes('"') || s.includes('\n')) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+function exportToCSV(candidates: Candidate[]) {
+  const headers = [
+    'Triple Name', 'Phone', 'WhatsApp', 'Gmail', 'Nationality', 'Site',
+    'Language', 'Age', 'College', 'Status', 'Military',
+    'Applied Last 3M', 'Experience', 'National ID', 'Company Name',
+    'Interview Date', 'Interview Time', 'Score', 'Applied Offer',
+    'Stage', 'Notes', 'Vocaroo', 'CV',
+  ];
+
+  const rows = candidates.map((c) => [
+    c.tripleName, c.phone, c.whatsapp, c.gmail, c.nationality, c.site,
+    c.language, c.age, c.college, c.status, c.military,
+    c.appliedLast3Months, c.experience, c.nationalId, c.companyName,
+    c.interviewDate, c.interviewTime, c.score, c.appliedOfferTitle,
+    c.candidateStatus || 'New', c.notes || '',
+    c.vocaroo, c.cv,
+  ]);
+
+  const csv =
+    '\uFEFF' +
+    [headers, ...rows].map((r) => r.map(csvEscape).join(',')).join('\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  const timestamp = new Date().toISOString().slice(0, 10);
+  link.href = url;
+  link.download = `candidates-${timestamp}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function normalizeDate(s: string): string {
+  if (!s) return '';
+  const trimmed = String(s).trim();
+  const m = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : trimmed;
+}
+
+function formatDateLong(iso: string): string {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso + 'T00:00:00');
+    if (isNaN(d.getTime())) return iso;
+    return d.toLocaleDateString('en-GB', {
+      weekday: 'long',
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+const STAGE_OPTIONS = [
+  'New',
+  'Contacted',
+  'Interviewed',
+  'Shortlisted',
+  'Hired',
+  'Rejected',
+  'No Show',
+];
+
+function stageStyle(stage: string) {
+  const s = String(stage || 'New');
+  if (s === 'Hired') return { bg: 'rgba(34,197,94,0.15)', color: '#86efac', border: 'rgba(34,197,94,0.3)' };
+  if (s === 'Rejected') return { bg: 'rgba(239,68,68,0.12)', color: '#fca5a5', border: 'rgba(239,68,68,0.3)' };
+  if (s === 'Shortlisted') return { bg: 'rgba(198,232,45,0.15)', color: 'var(--neon)', border: 'rgba(198,232,45,0.4)' };
+  if (s === 'Interviewed') return { bg: 'rgba(59,130,246,0.12)', color: '#93c5fd', border: 'rgba(59,130,246,0.3)' };
+  if (s === 'No Show') return { bg: 'rgba(239,68,68,0.1)', color: '#fca5a5', border: 'rgba(239,68,68,0.25)' };
+  if (s === 'Contacted') return { bg: 'rgba(245,158,11,0.12)', color: '#fcd34d', border: 'rgba(245,158,11,0.3)' };
+  return { bg: 'rgba(255,255,255,0.05)', color: 'var(--muted)', border: 'var(--border)' };
+}
+
+/* ============ MAIN ============ */
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState<'candidates' | 'offers'>('candidates');
-  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [activeTab, setActiveTab] = useState<'candidates' | 'interviews' | 'analytics' | 'offers'>('candidates');  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
   const router = useRouter();
+
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterNationality, setFilterNationality] = useState('all');
+  const [filterOffer, setFilterOffer] = useState('all');
+  const [filterStage, setFilterStage] = useState('all');
+  const [minScore, setMinScore] = useState(0);
+  const [sortKey, setSortKey] = useState<SortKey>('newest');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
+
+  const [interviewDateFilter, setInterviewDateFilter] = useState<string>('');
+
+  function reload() {
+    const t = localStorage.getItem('staffToken');
+    fetch('/api/dashboard', {
+      headers: { Authorization: 'Bearer ' + t },
+    })
+      .then((r) => r.json())
+      .then((res) => {
+        if (res.ok) setData(res);
+      });
+  }
 
   useEffect(() => {
     const t = localStorage.getItem('staffToken');
@@ -134,6 +273,137 @@ export default function DashboardPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [router]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, filterStatus, filterNationality, filterOffer, filterStage, minScore, sortKey]);
+
+  const statusOptions = useMemo(() => {
+    if (!data) return [];
+    return Array.from(new Set(data.candidates.map((c) => c.status).filter(Boolean))).sort();
+  }, [data]);
+
+  const nationalityOptions = useMemo(() => {
+    if (!data) return [];
+    return Array.from(
+      new Set(data.candidates.map((c) => c.nationality).filter(Boolean))
+    ).sort();
+  }, [data]);
+
+  const offerOptions = useMemo(() => {
+    if (!data) return [];
+    const map = new Map<string, string>();
+    data.candidates.forEach((c) => {
+      if (c.appliedOfferId && c.appliedOfferTitle) {
+        map.set(c.appliedOfferId, c.appliedOfferTitle);
+      }
+    });
+    return Array.from(map.entries()).map(([id, title]) => ({ id, title }));
+  }, [data]);
+
+  const availableInterviewDates = useMemo(() => {
+    if (!data) return [];
+    const set = new Set<string>();
+    data.candidates.forEach((c) => {
+      const d = normalizeDate(c.interviewDate);
+      if (d) set.add(d);
+    });
+    return Array.from(set).sort();
+  }, [data]);
+
+  const candidatesWithInterviews = useMemo(() => {
+    if (!data) return [];
+    return data.candidates.filter((c) => normalizeDate(c.interviewDate));
+  }, [data]);
+
+  const interviewDayCandidates = useMemo(() => {
+    if (!interviewDateFilter) return [];
+    return candidatesWithInterviews.filter(
+      (c) => normalizeDate(c.interviewDate) === interviewDateFilter
+    );
+  }, [candidatesWithInterviews, interviewDateFilter]);
+
+  const interviewGroups = useMemo(() => {
+    const groups = new Map<string, Candidate[]>();
+    interviewDayCandidates.forEach((c) => {
+      const time = (c.interviewTime || 'No time specified').trim();
+      if (!groups.has(time)) groups.set(time, []);
+      groups.get(time)!.push(c);
+    });
+    return Array.from(groups.entries()).sort(([a], [b]) => a.localeCompare(b));
+  }, [interviewDayCandidates]);
+
+  const filteredCandidates = useMemo(() => {
+    if (!data) return [];
+    let list = [...data.candidates];
+
+    if (search.trim()) {
+      const q = search.trim().toLowerCase();
+      list = list.filter((c) =>
+        [c.tripleName, c.phone, c.whatsapp, c.gmail, c.nationalId]
+          .join(' ')
+          .toLowerCase()
+          .includes(q)
+      );
+    }
+
+    if (filterStatus !== 'all') list = list.filter((c) => c.status === filterStatus);
+    if (filterNationality !== 'all')
+      list = list.filter((c) => c.nationality === filterNationality);
+    if (filterOffer !== 'all')
+      list = list.filter((c) => c.appliedOfferId === filterOffer);
+    if (filterStage !== 'all')
+      list = list.filter((c) => (c.candidateStatus || 'New') === filterStage);
+    if (minScore > 0) list = list.filter((c) => c.score >= minScore);
+
+    switch (sortKey) {
+      case 'newest':
+        list.sort((a, b) => String(b.timestamp).localeCompare(String(a.timestamp)));
+        break;
+      case 'oldest':
+        list.sort((a, b) => String(a.timestamp).localeCompare(String(b.timestamp)));
+        break;
+      case 'score-desc':
+        list.sort((a, b) => b.score - a.score);
+        break;
+      case 'score-asc':
+        list.sort((a, b) => a.score - b.score);
+        break;
+      case 'name-asc':
+        list.sort((a, b) => a.tripleName.localeCompare(b.tripleName));
+        break;
+      case 'name-desc':
+        list.sort((a, b) => b.tripleName.localeCompare(a.tripleName));
+        break;
+    }
+
+    return list;
+  }, [data, search, filterStatus, filterNationality, filterOffer, filterStage, minScore, sortKey]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredCandidates.length / pageSize));
+  const paginatedCandidates = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredCandidates.slice(start, start + pageSize);
+  }, [filteredCandidates, currentPage]);
+
+  const activeFiltersCount = [
+    filterStatus !== 'all',
+    filterNationality !== 'all',
+    filterOffer !== 'all',
+    filterStage !== 'all',
+    minScore > 0,
+    search.trim() !== '',
+  ].filter(Boolean).length;
+
+  function clearFilters() {
+    setSearch('');
+    setFilterStatus('all');
+    setFilterNationality('all');
+    setFilterOffer('all');
+    setFilterStage('all');
+    setMinScore(0);
+    setSortKey('newest');
+  }
 
   if (loading) {
     return (
@@ -183,6 +453,18 @@ export default function DashboardPage() {
           Candidates ({data.totalCandidates})
         </button>
         <button
+          className={'tab' + (activeTab === 'interviews' ? ' on' : '')}
+          onClick={() => setActiveTab('interviews')}
+        >
+          Interviews ({data.scheduledInterviews})
+        </button>
+        <button
+          className={'tab' + (activeTab === 'analytics' ? ' on' : '')}
+          onClick={() => setActiveTab('analytics')}
+        >
+          Analytics
+        </button>
+        <button
           className={'tab' + (activeTab === 'offers' ? ' on' : '')}
           onClick={() => setActiveTab('offers')}
         >
@@ -191,11 +473,162 @@ export default function DashboardPage() {
       </div>
 
       {activeTab === 'candidates' && (
-        <CandidatesTab
-          candidates={data.candidates}
+        <>
+          <div className="filter-bar">
+            <div className="filter-search">
+              <span className="filter-search-icon">
+                <IconSearch />
+              </span>
+              <input
+                type="text"
+                placeholder="Search by name, phone, email, national ID…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              {search && (
+                <button
+                  type="button"
+                  className="filter-search-clear"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                >
+                  <IconX />
+                </button>
+              )}
+            </div>
+
+            <select
+              value={filterStage}
+              onChange={(e) => setFilterStage(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">All Stages</option>
+              {STAGE_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">All Statuses</option>
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filterNationality}
+              onChange={(e) => setFilterNationality(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">All Nationalities</option>
+              {nationalityOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={filterOffer}
+              onChange={(e) => setFilterOffer(e.target.value)}
+              className="filter-select"
+            >
+              <option value="all">All Offers</option>
+              {offerOptions.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.title}
+                </option>
+              ))}
+            </select>
+
+            <select
+              value={minScore}
+              onChange={(e) => setMinScore(Number(e.target.value))}
+              className="filter-select"
+            >
+              <option value={0}>Any Score</option>
+              <option value={60}>≥ 60%</option>
+              <option value={80}>≥ 80%</option>
+              <option value={100}>100% Only</option>
+            </select>
+
+            <select
+              value={sortKey}
+              onChange={(e) => setSortKey(e.target.value as SortKey)}
+              className="filter-select"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="score-desc">Score: High → Low</option>
+              <option value="score-asc">Score: Low → High</option>
+              <option value="name-asc">Name: A → Z</option>
+              <option value="name-desc">Name: Z → A</option>
+            </select>
+
+            {activeFiltersCount > 0 && (
+              <button type="button" onClick={clearFilters} className="filter-clear">
+                <IconX />
+                Clear ({activeFiltersCount})
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="filter-export"
+              onClick={() => exportToCSV(filteredCandidates)}
+              disabled={filteredCandidates.length === 0}
+            >
+              <IconDownload />
+              Export CSV
+            </button>
+          </div>
+
+          <div className="filter-count">
+            Showing <strong>{paginatedCandidates.length}</strong> of{' '}
+            <strong>{filteredCandidates.length}</strong> candidate
+            {filteredCandidates.length !== 1 ? 's' : ''}
+            {activeFiltersCount > 0 && ` (filtered from ${data.totalCandidates})`}
+          </div>
+
+          <CandidatesTab
+            candidates={paginatedCandidates}
+            onView={(c) => setSelectedCandidate(c)}
+          />
+
+          {totalPages > 1 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          )}
+        </>
+      )}
+
+      {activeTab === 'interviews' && (
+        <InterviewsTab
+          allCandidates={data.candidates}
+          availableDates={availableInterviewDates}
+          totalWithInterviews={candidatesWithInterviews.length}
+          selectedDate={interviewDateFilter}
+          onDateChange={setInterviewDateFilter}
+          groups={interviewGroups}
+          dayCandidates={interviewDayCandidates}
           onView={(c) => setSelectedCandidate(c)}
         />
       )}
+             {activeTab === 'analytics' && (
+        <DashboardCharts candidates={data.candidates} offers={data.offers} />
+      )}
+
       {activeTab === 'offers' && <OffersTab offers={data.offers} />}
 
       {selectedCandidate && (
@@ -203,12 +636,302 @@ export default function DashboardPage() {
           candidate={selectedCandidate}
           offers={data.offers}
           onClose={() => setSelectedCandidate(null)}
+          onSaved={reload}
         />
       )}
     </div>
   );
 }
 
+/* ============ PAGINATION ============ */
+function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (p: number) => void;
+}) {
+  const pages: (number | string)[] = [];
+  for (let i = 1; i <= totalPages; i++) {
+    if (
+      i === 1 ||
+      i === totalPages ||
+      (i >= currentPage - 1 && i <= currentPage + 1)
+    ) {
+      pages.push(i);
+    }
+  }
+
+  const withDots: (number | string)[] = [];
+  pages.forEach((p, idx) => {
+    if (idx > 0 && typeof p === 'number' && typeof pages[idx - 1] === 'number') {
+      const prev = pages[idx - 1] as number;
+      if (p - prev > 1) withDots.push('dots-' + p);
+    }
+    withDots.push(p);
+  });
+
+  return (
+    <div className="pagination">
+      <button
+        type="button"
+        className="page-btn"
+        disabled={currentPage === 1}
+        onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+      >
+        ← Previous
+      </button>
+
+      <div className="page-numbers">
+        {withDots.map((p) =>
+          typeof p === 'string' ? (
+            <span key={p} className="page-dots">…</span>
+          ) : (
+            <button
+              key={p}
+              type="button"
+              className={'page-num' + (p === currentPage ? ' on' : '')}
+              onClick={() => onPageChange(p)}
+            >
+              {p}
+            </button>
+          )
+        )}
+      </div>
+
+      <button
+        type="button"
+        className="page-btn"
+        disabled={currentPage === totalPages}
+        onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+      >
+        Next →
+      </button>
+    </div>
+  );
+}
+
+/* ============ INTERVIEWS TAB ============ */
+function InterviewsTab({
+  availableDates,
+  totalWithInterviews,
+  selectedDate,
+  onDateChange,
+  groups,
+  dayCandidates,
+  onView,
+}: {
+  allCandidates: Candidate[];
+  availableDates: string[];
+  totalWithInterviews: number;
+  selectedDate: string;
+  onDateChange: (d: string) => void;
+  groups: [string, Candidate[]][];
+  dayCandidates: Candidate[];
+  onView: (c: Candidate) => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = availableDates.filter((d) => d >= today);
+  const past = availableDates.filter((d) => d < today);
+
+  return (
+    <div>
+      <div className="interview-picker">
+        <div className="interview-picker-left">
+          <div className="interview-picker-icon">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+              <circle cx="8" cy="15" r="1" fill="currentColor" />
+              <circle cx="12" cy="15" r="1" fill="currentColor" />
+              <circle cx="16" cy="15" r="1" fill="currentColor" />
+            </svg>
+          </div>
+          <div>
+            <div className="interview-picker-title">Interview Schedule</div>
+            <div className="interview-picker-sub">
+              {totalWithInterviews} candidate{totalWithInterviews !== 1 ? 's' : ''} with
+              scheduled interviews
+            </div>
+          </div>
+        </div>
+
+        <div className="interview-picker-right">
+          <label className="interview-picker-label">Pick a date</label>
+          <input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => onDateChange(e.target.value)}
+            className="interview-date-input"
+          />
+        </div>
+      </div>
+
+      {availableDates.length > 0 && (
+        <div className="interview-quick-dates">
+          <span className="interview-quick-label">Quick pick:</span>
+          {upcoming.slice(0, 8).map((d) => (
+            <button
+              key={d}
+              type="button"
+              className={'interview-date-chip' + (d === selectedDate ? ' on' : '')}
+              onClick={() => onDateChange(d)}
+            >
+              {formatDateLong(d)}
+            </button>
+          ))}
+          {upcoming.length === 0 && past.length > 0 && (
+            <span className="interview-quick-empty">No upcoming dates</span>
+          )}
+        </div>
+      )}
+
+      {!selectedDate && (
+        <div className="interview-empty">
+          <div className="interview-empty-icon">
+            <svg width="54" height="54" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </div>
+          <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>
+            Pick a date to see scheduled interviews
+          </p>
+        </div>
+      )}
+
+      {selectedDate && dayCandidates.length === 0 && (
+        <div className="interview-empty">
+          <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>
+            No interviews on this day
+          </p>
+          <p style={{ fontSize: 13, color: 'var(--muted)' }}>
+            {formatDateLong(selectedDate)}
+          </p>
+        </div>
+      )}
+
+      {selectedDate && dayCandidates.length > 0 && (
+        <>
+          <div className="interview-summary">
+            <div>
+              <div className="interview-summary-date">{formatDateLong(selectedDate)}</div>
+              <div className="interview-summary-count">
+                {dayCandidates.length} candidate{dayCandidates.length !== 1 ? 's' : ''}
+                {' · '}
+                {groups.length} time slot{groups.length !== 1 ? 's' : ''}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="filter-export"
+              onClick={() => exportToCSV(dayCandidates)}
+            >
+              <IconDownload />
+              Export Day
+            </button>
+          </div>
+
+          {groups.map(([time, cands]) => (
+            <div key={time} className="interview-group">
+              <div className="interview-group-head">
+                <span className="interview-group-icon">
+                  <IconClock />
+                </span>
+                <span className="interview-group-time">{time}</span>
+                <span className="interview-group-count">
+                  {cands.length} candidate{cands.length !== 1 ? 's' : ''}
+                </span>
+              </div>
+
+              <div className="interview-cards">
+                {cands.map((c) => {
+                  const wa = String(c.whatsapp || c.phone || '').replace(/\D/g, '');
+                  const style = stageStyle(c.candidateStatus || 'New');
+                  return (
+                    <div key={c.rowIndex} className="interview-card">
+                      <div className="interview-card-main">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+                          <div className="interview-card-name">{c.tripleName}</div>
+                          <span style={{
+                            padding: '3px 9px',
+                            borderRadius: 999,
+                            fontSize: 10,
+                            fontWeight: 800,
+                            background: style.bg,
+                            color: style.color,
+                            border: '1px solid ' + style.border,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.04em',
+                          }}>
+                            {c.candidateStatus || 'New'}
+                          </span>
+                        </div>
+                        <div className="interview-card-meta">
+                          {c.appliedOfferTitle && (
+                            <span className="interview-card-offer">
+                              {c.appliedOfferTitle}
+                            </span>
+                          )}
+                          <span>{c.phone}</span>
+                          <span>{c.age}</span>
+                          <span>{c.nationality}</span>
+                        </div>
+                      </div>
+                      <div className="interview-card-actions">
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => onView(c)}
+                        >
+                          View
+                        </button>
+                                                {wa && (
+                          <a
+                            className="btn btn-ghost btn-sm"
+                            href={buildWhatsAppLink(
+                              String(c.whatsapp || c.phone),
+                              buildWhatsAppMessage({
+                                name: c.tripleName,
+                                stage: c.candidateStatus || 'New',
+                                offerTitle: c.appliedOfferTitle,
+                                interviewDate: c.interviewDate,
+                                interviewTime: c.interviewTime,
+                              })
+                            )}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 5,
+                              color: '#25D366',
+                            }}
+                          >
+                            <IconWhatsapp />
+                            WhatsApp
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ============ KPI CARD ============ */
 function KpiCard({
   icon,
   value,
@@ -261,6 +984,7 @@ function KpiCard({
   );
 }
 
+/* ============ CANDIDATES TAB ============ */
 function CandidatesTab({
   candidates,
   onView,
@@ -271,7 +995,7 @@ function CandidatesTab({
   if (candidates.length === 0) {
     return (
       <div style={{ padding: 60, textAlign: 'center', color: 'var(--muted)' }}>
-        <p>No candidates yet.</p>
+        <p>No candidates match the current filters.</p>
       </div>
     );
   }
@@ -286,7 +1010,7 @@ function CandidatesTab({
             <th>Applied For</th>
             <th>Phone</th>
             <th>Nationality</th>
-            <th>Status</th>
+            <th>Stage</th>
             <th>Age</th>
             <th>Interview</th>
             <th>Score</th>
@@ -298,6 +1022,7 @@ function CandidatesTab({
             const parts: { icon: 'calendar' | 'clock'; text: string }[] = [];
             if (c.interviewDate) parts.push({ icon: 'calendar', text: c.interviewDate });
             if (c.interviewTime) parts.push({ icon: 'clock', text: c.interviewTime });
+            const stStyle = stageStyle(c.candidateStatus || 'New');
 
             return (
               <tr key={c.rowIndex}>
@@ -308,7 +1033,21 @@ function CandidatesTab({
                 <td>{c.appliedOfferTitle || '—'}</td>
                 <td>{c.phone}</td>
                 <td>{c.nationality}</td>
-                <td>{c.status}</td>
+                <td>
+                  <span style={{
+                    display: 'inline-block',
+                    padding: '4px 10px',
+                    borderRadius: 999,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    background: stStyle.bg,
+                    color: stStyle.color,
+                    border: '1px solid ' + stStyle.border,
+                    whiteSpace: 'nowrap',
+                  }}>
+                    {c.candidateStatus || 'New'}
+                  </span>
+                </td>
                 <td>{c.age}</td>
                 <td>
                   {parts.length > 0 ? (
@@ -351,14 +1090,43 @@ function CandidatesTab({
                     </span>
                   </div>
                 </td>
-                <td>
-                  <button
-                    className="btn btn-ghost btn-sm"
-                    onClick={() => onView(c)}
-                    type="button"
-                  >
-                    View
-                  </button>
+                              <td>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => onView(c)}
+                      type="button"
+                    >
+                      View
+                    </button>
+                    {String(c.whatsapp || c.phone || '').trim() && (
+                      <a
+                        className="btn btn-ghost btn-sm"
+                        href={buildWhatsAppLink(
+                          String(c.whatsapp || c.phone),
+                          buildWhatsAppMessage({
+                            name: c.tripleName,
+                            stage: c.candidateStatus || 'New',
+                            offerTitle: c.appliedOfferTitle,
+                            interviewDate: c.interviewDate,
+                            interviewTime: c.interviewTime,
+                          })
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 5,
+                          color: '#25D366',
+                        }}
+                        title="Send WhatsApp message"
+                      >
+                        <IconWhatsapp />
+                        WhatsApp
+                      </a>
+                    )}
+                  </div>
                 </td>
               </tr>
             );
@@ -369,6 +1137,7 @@ function CandidatesTab({
   );
 }
 
+/* ============ OFFERS TAB ============ */
 function OffersTab({ offers }: { offers: any[] }) {
   if (offers.length === 0) {
     return (
@@ -424,16 +1193,57 @@ function OffersTab({ offers }: { offers: any[] }) {
   );
 }
 
+/* ============ CANDIDATE MODAL ============ */
 function CandidateModal({
   candidate,
   offers,
   onClose,
+  onSaved,
 }: {
   candidate: Candidate;
   offers: any[];
   onClose: () => void;
+  onSaved: () => void;
 }) {
   const c = candidate;
+  const [editStatus, setEditStatus] = useState(c.candidateStatus || 'New');
+  const [editNotes, setEditNotes] = useState(c.notes || '');
+  const [saving, setSaving] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
+
+  async function saveChanges() {
+    setSaving(true);
+    setSaveMsg('');
+    try {
+      const token = localStorage.getItem('staffToken');
+      const res = await fetch('/api/candidates/update', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer ' + token,
+        },
+        body: JSON.stringify({
+          rowIndex: c.rowIndex,
+          candidateStatus: editStatus,
+          notes: editNotes,
+        }),
+      });
+      const data = await res.json();
+      setSaving(false);
+      if (!data.ok) {
+        setSaveMsg('Failed: ' + (data.error || 'Unknown'));
+        return;
+      }
+      setSaveMsg('Saved!');
+      setTimeout(() => {
+        onSaved();
+        onClose();
+      }, 700);
+    } catch (e: any) {
+      setSaving(false);
+      setSaveMsg('Error: ' + e.message);
+    }
+  }
 
   const matches = offers
     .map((o) => {
@@ -546,6 +1356,7 @@ function CandidateModal({
           </button>
         </div>
 
+        {/* Links */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
           {c.vocaroo && (
             <a
@@ -571,13 +1382,27 @@ function CandidateModal({
               CV
             </a>
           )}
-          {waNumber && (
+                  {waNumber && (
             <a
               className="btn btn-ghost btn-sm"
-              href={`https://wa.me/${waNumber}`}
+              href={buildWhatsAppLink(
+                String(c.whatsapp || c.phone),
+                buildWhatsAppMessage({
+                  name: c.tripleName,
+                  stage: editStatus,
+                  offerTitle: c.appliedOfferTitle,
+                  interviewDate: c.interviewDate,
+                  interviewTime: c.interviewTime,
+                })
+              )}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                color: '#25D366',
+              }}
             >
               <IconWhatsapp />
               WhatsApp
@@ -585,6 +1410,77 @@ function CandidateModal({
           )}
         </div>
 
+        {/* Status & Notes */}
+        <div style={{
+          background: 'rgba(198,232,45,0.05)',
+          border: '1px solid rgba(198,232,45,0.25)',
+          borderRadius: 12,
+          padding: 18,
+          marginBottom: 20,
+        }}>
+          <div style={{
+            fontSize: 13,
+            fontWeight: 800,
+            color: 'var(--neon)',
+            marginBottom: 12,
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+          }}>
+            <IconClipboard />
+            Status & Notes
+          </div>
+
+          <div className="field" style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 11 }}>Candidate Stage</label>
+            <select
+              value={editStatus}
+              onChange={(e) => setEditStatus(e.target.value)}
+            >
+              {STAGE_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="field" style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 11 }}>Internal Notes</label>
+            <textarea
+              value={editNotes}
+              onChange={(e) => setEditNotes(e.target.value)}
+              placeholder="Add notes about this candidate (interview feedback, reminders, etc.)"
+              rows={3}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              onClick={saveChanges}
+              disabled={saving}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+            >
+              <IconSave />
+              {saving ? 'Saving…' : 'Save Status & Notes'}
+            </button>
+            {saveMsg && (
+              <span style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: saveMsg.startsWith('Saved') ? 'var(--neon)' : '#fca5a5',
+              }}>
+                {saveMsg}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Info */}
         <div
           style={{
             background: 'var(--bg-2)',
@@ -659,13 +1555,7 @@ function CandidateModal({
                     <div style={{ fontWeight: 700, fontSize: 14 }}>
                       {m.offer.jobTitle}
                     </div>
-                    <div
-                      style={{
-                        color: 'var(--muted)',
-                        fontSize: 12,
-                        marginTop: 2,
-                      }}
-                    >
+                    <div style={{ color: 'var(--muted)', fontSize: 12, marginTop: 2 }}>
                       {m.offer.companyName} · {m.offer.site || ''}
                     </div>
                   </div>
@@ -691,13 +1581,7 @@ function CandidateModal({
                     >
                       {m.qualified ? 'Qualified' : 'Partial'}
                     </span>
-                    <span
-                      style={{
-                        fontWeight: 800,
-                        color: 'var(--neon)',
-                        fontSize: 15,
-                      }}
-                    >
+                    <span style={{ fontWeight: 800, color: 'var(--neon)', fontSize: 15 }}>
                       {m.score}%
                     </span>
                   </div>

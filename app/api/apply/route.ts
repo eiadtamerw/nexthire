@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from 'next/server';
 import {
   addCandidateToSheet,
   getOffersFromSheet,
 } from '../../../lib/sheets';
 import { evaluateCandidateForOffer } from '../../../lib/matching';
+import { sendCandidateConfirmation } from '../../../lib/email';
 
 export async function POST(request: Request) {
   try {
@@ -71,10 +73,15 @@ export async function POST(request: Request) {
       appliedOfferId: String(body.appliedOfferId || ''),
       appliedOfferTitle: String(body.appliedOfferTitle || targetOffer.jobTitle),
       interviewTime: String(body.interviewTime || ''),
+      candidateStatus: 'New',
+      notes: '',
     };
 
     // 4. فحص التوافق مع العرض المختار
-    const eligibility = evaluateCandidateForOffer(tempCandidate, targetOffer);
+    const eligibility = evaluateCandidateForOffer(
+      tempCandidate as any,
+      targetOffer as any
+    );
 
     if (!eligibility.qualified) {
       const failed = eligibility.checks
@@ -97,13 +104,13 @@ export async function POST(request: Request) {
     const openOffers = offers.filter(
       (o) => (o.status || '').toLowerCase() === 'open'
     );
-    let bestScore = eligibility.score; // على الأقل score العرض اللي اختاره
+    let bestScore = eligibility.score;
     openOffers.forEach((o) => {
-      const ev = evaluateCandidateForOffer(tempCandidate, o);
+      const ev = evaluateCandidateForOffer(tempCandidate as any, o as any);
       if (ev.score > bestScore) bestScore = ev.score;
     });
 
-    // 6. احفظ في الشيت مع الـ score
+    // 6. احفظ في الشيت
     await addCandidateToSheet({
       tripleName: tempCandidate.tripleName,
       phone: tempCandidate.phone,
@@ -128,6 +135,29 @@ export async function POST(request: Request) {
       interviewTime: tempCandidate.interviewTime,
       score: bestScore,
     });
+
+    // 7. ⭐ ابعت الإيميل للـ admin (متوقفش العملية لو فشل)
+        try {
+      await sendCandidateConfirmation({
+        tripleName: tempCandidate.tripleName,
+        phone: tempCandidate.phone,
+        gmail: tempCandidate.gmail,
+        nationality: tempCandidate.nationality,
+        age: tempCandidate.age,
+        college: tempCandidate.college,
+        status: tempCandidate.status,
+        language: tempCandidate.language,
+        experience: tempCandidate.experience,
+        appliedOfferTitle: targetOffer.jobTitle,
+        interviewDate: tempCandidate.interviewDate,
+        interviewTime: tempCandidate.interviewTime,
+        vocaroo: tempCandidate.vocaroo,
+        cv: tempCandidate.cv,
+        score: bestScore,
+      });
+    } catch (emailErr) {
+      console.error('Email notification failed:', emailErr);
+    }
 
     return NextResponse.json({
       ok: true,

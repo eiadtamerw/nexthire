@@ -260,6 +260,8 @@ export async function addCandidateToSheet(data: {
     data.appliedOfferId,
     data.appliedOfferTitle,
     data.interviewTime,
+    'New',   // ⭐ Candidate Status
+    '',      // ⭐ Notes
   ]);
 
   return { ok: true };
@@ -297,6 +299,8 @@ export async function getCandidatesFromSheet() {
       appliedOfferId: String(row[20] || ''),
       appliedOfferTitle: String(row[21] || ''),
       interviewTime: String(row[22] || ''),
+      candidateStatus: String(row[23] || 'New'),   // ⭐ جديد
+      notes: String(row[24] || ''),                 // ⭐ جديد
     }));
 }
 
@@ -536,6 +540,130 @@ export async function deleteUserFromSheet(username: string) {
       });
     }
   }
+
+  return { ok: true };
+}
+/**
+ * يحدّث حالة الكانديدت والملاحظات
+ */
+export async function updateCandidateStatus(
+  rowIndex: number,
+  candidateStatus: string,
+  notes: string
+) {
+  const sheets = await getSheetsClient();
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `Candidates!X${rowIndex}:Y${rowIndex}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [[candidateStatus, notes]],
+    },
+  });
+
+  return { ok: true };
+}
+/* ============ RATE LIMITING ============ */
+export async function getLoginAttempts(identifier: string) {
+  const rows = await readSheet('LoginAttempts');
+  if (rows.length < 2) return { count: 0, firstAttempt: 0, rows: [] };
+
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000; // 15 دقيقة
+
+  const matching = rows
+    .slice(1)
+    .map((row, i) => ({
+      rowIndex: i + 2,
+      identifier: String(row[0] || ''),
+      timestamp: Number(row[1]) || 0,
+      failed_count: Number(row[2]) || 0,
+    }))
+    .filter(
+      (r) => r.identifier === identifier && now - r.timestamp < windowMs
+    );
+
+  if (matching.length === 0) {
+    return { count: 0, firstAttempt: 0, rows: [] };
+  }
+
+  const total = matching.reduce((sum, r) => sum + r.failed_count, 0);
+  const first = Math.min(...matching.map((r) => r.timestamp));
+  return { count: total, firstAttempt: first, rows: matching };
+}
+
+export async function recordFailedLogin(identifier: string) {
+  const rows = await readSheet('LoginAttempts');
+  const now = Date.now();
+
+  // دور على سطر موجود في آخر 15 دقيقة
+  if (rows.length >= 2) {
+    const windowMs = 15 * 60 * 1000;
+    for (let i = 0; i < rows.length - 1; i++) {
+      const row = rows[i + 1];
+      const id = String(row[0] || '');
+      const ts = Number(row[1]) || 0;
+      if (id === identifier && now - ts < windowMs) {
+        const rowIndex = i + 2;
+        const currentCount = Number(row[2]) || 0;
+        const sheets = await getSheetsClient();
+        await sheets.spreadsheets.values.update({
+          spreadsheetId: SPREADSHEET_ID,
+          range: `LoginAttempts!B${rowIndex}:C${rowIndex}`,
+          valueInputOption: 'USER_ENTERED',
+          requestBody: {
+            values: [[String(now), String(currentCount + 1)]],
+          },
+        });
+        return { ok: true };
+      }
+    }
+  }
+
+  // مفيش سطر قديم — ضيف واحد جديد
+  await appendRow('LoginAttempts', [identifier, String(now), '1']);
+  return { ok: true };
+}
+
+export async function clearLoginAttempts(identifier: string) {
+  const rows = await readSheet('LoginAttempts');
+  if (rows.length < 2) return { ok: true };
+
+  const sheets = await getSheetsClient();
+  const spreadsheet = await sheets.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+  });
+  const sheet = spreadsheet.data.sheets?.find(
+    (s) => s.properties?.title === 'LoginAttempts'
+  );
+  const sheetId = sheet?.properties?.sheetId;
+  if (sheetId === undefined || sheetId === null) return { ok: false };
+
+  const matching: number[] = [];
+  rows.slice(1).forEach((row, i) => {
+    if (String(row[0] || '') === identifier) matching.push(i + 2);
+  });
+
+  if (matching.length === 0) return { ok: true };
+
+  const requests = matching
+    .sort((a, b) => b - a)
+    .map((idx) => ({
+      deleteDimension: {
+        range: {
+          sheetId,
+          dimension: 'ROWS' as const,
+          startIndex: idx - 1,
+          endIndex: idx,
+        },
+      },
+    }));
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SPREADSHEET_ID,
+    requestBody: { requests },
+  });
 
   return { ok: true };
 }

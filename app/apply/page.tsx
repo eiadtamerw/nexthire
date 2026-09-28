@@ -36,7 +36,7 @@ export default function ApplyPage() {
     teamLeader: '',
   });
 
-  const [languages, setLanguages] = useState([{ lang: '', lvl: '' }]);
+  const [languages, setLanguages] = useState<string[]>(['']);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -108,14 +108,14 @@ export default function ApplyPage() {
   }
 
   function addLanguage() {
-    setLanguages([...languages, { lang: '', lvl: '' }]);
-  }
+    setLanguages([...languages, '']);
+}
 
-  function updateLanguage(index: number, field: 'lang' | 'lvl', value: string) {
+    function updateLanguage(index: number, value: string) {
     const copy = [...languages];
-    copy[index][field] = value;
-    setLanguages(copy);
-  }
+   copy[index] = value;
+   setLanguages(copy);
+}
 
   function removeLanguage(index: number) {
     setLanguages(languages.filter((_, i) => i !== index));
@@ -146,11 +146,7 @@ export default function ApplyPage() {
       return;
     }
 
-    const langParts: string[] = [];
-    languages.forEach((l) => {
-      if (l.lang) langParts.push(l.lang + (l.lvl ? ' - ' + l.lvl : ''));
-    });
-    const finalLanguage = langParts.join(', ');
+    const finalLanguage = languages.filter((l) => l && l.trim()).join(', ');
 
     if (!finalLanguage) {
       setError('Please select at least one language.');
@@ -215,7 +211,7 @@ export default function ApplyPage() {
       cv: '',
       teamLeader: '',
     });
-    setLanguages([{ lang: '', lvl: '' }]);
+    setLanguages(['']);
     setSubmitted(false);
     setError('');
   }
@@ -471,18 +467,22 @@ export default function ApplyPage() {
 
         <div className="form-section">
           <h3>
-            <span className="dot"></span> Language & Level
+            <span className="dot"></span> Languages
           </h3>
 
           {languages.map((lang, i) => (
-            <div key={i} className="field-row-3" style={{ marginBottom: 12 }}>
-              <div className="field" style={{ marginBottom: 0 }}>
+            <div
+              key={i}
+              className="field-row"
+              style={{ marginBottom: 12, alignItems: 'flex-end' }}
+            >
+              <div className="field" style={{ marginBottom: 0, flex: 1 }}>
                 <label>
                   Language {i + 1} <span className="req">*</span>
                 </label>
                 <select
-                  value={lang.lang}
-                  onChange={(e) => updateLanguage(i, 'lang', e.target.value)}
+                  value={lang}
+                  onChange={(e) => updateLanguage(i, e.target.value)}
                 >
                   <option value="">Select…</option>
                   <option>English</option>
@@ -494,28 +494,8 @@ export default function ApplyPage() {
                   <option>Turkish</option>
                 </select>
               </div>
-              <div className="field" style={{ marginBottom: 0 }}>
-                <label>
-                  Level {i + 1} <span className="req">*</span>
-                </label>
-                <select
-                  value={lang.lvl}
-                  onChange={(e) => updateLanguage(i, 'lvl', e.target.value)}
-                >
-                  <option value="">Select…</option>
-                  <option>A1</option>
-                  <option>A2</option>
-                  <option>B1</option>
-                  <option>B2</option>
-                  <option>C1</option>
-                  <option>C2</option>
-                  <option>Native</option>
-                </select>
-              </div>
-              <div
-                className="field"
-                style={{ marginBottom: 0, display: 'flex', alignItems: 'flex-end' }}
-              >
+
+              <div className="field" style={{ marginBottom: 0, minWidth: 160 }}>
                 {i === 0 ? (
                   <button
                     type="button"
@@ -539,7 +519,6 @@ export default function ApplyPage() {
             </div>
           ))}
         </div>
-
         <div className="form-section">
           <h3>
             <span className="dot"></span> Experience

@@ -29,6 +29,15 @@ export default function LoginPage() {
         return;
       }
 
+      // ⭐ شغل نغمة الـ Login
+      try {
+        const audio = new Audio('/sounds/login.mp3');
+        audio.volume = 0.5;
+        await audio.play();
+      } catch (err) {
+        console.warn('Login sound failed:', err);
+      }
+
       localStorage.setItem('staffToken', data.token);
       localStorage.setItem('staffExpires', String(data.expiresAt));
       localStorage.setItem('staffUsername', data.username);
@@ -45,22 +54,22 @@ export default function LoginPage() {
     <div className="login-wrap">
       <div className="login-bg-logo">
         <svg viewBox="0 0 130 115" fill="none">
-          <circle cx="20" cy="12" r="8" fill="currentColor"/>
-          <path d="M 6 26 L 6 92 L 24 92 L 24 56 L 56 92 L 74 92 L 74 26 L 56 26 L 56 62 L 24 26 Z" fill="currentColor"/>
-          <path d="M 112 26 L 112 78 Q 112 92 126 92" stroke="currentColor" strokeWidth="18" fill="none" strokeLinecap="round"/>
-          <rect x="88" y="52" width="42" height="14" fill="currentColor"/>
-          <circle cx="122" cy="108" r="8" fill="currentColor"/>
+          <circle cx="20" cy="12" r="8" fill="currentColor" />
+          <path d="M 6 26 L 6 92 L 24 92 L 24 56 L 56 92 L 74 92 L 74 26 L 56 26 L 56 62 L 24 26 Z" fill="currentColor" />
+          <path d="M 112 26 L 112 78 Q 112 92 126 92" stroke="currentColor" strokeWidth="18" fill="none" strokeLinecap="round" />
+          <rect x="88" y="52" width="42" height="14" fill="currentColor" />
+          <circle cx="122" cy="108" r="8" fill="currentColor" />
         </svg>
       </div>
 
       <div className="login-card">
         <div className="login-icon">
           <svg viewBox="0 0 130 115" fill="none">
-            <circle cx="20" cy="12" r="8" fill="currentColor"/>
-            <path d="M 6 26 L 6 92 L 24 92 L 24 56 L 56 92 L 74 92 L 74 26 L 56 26 L 56 62 L 24 26 Z" fill="currentColor"/>
-            <path d="M 112 26 L 112 78 Q 112 92 126 92" stroke="currentColor" strokeWidth="18" fill="none" strokeLinecap="round"/>
-            <rect x="88" y="52" width="42" height="14" fill="currentColor"/>
-            <circle cx="122" cy="108" r="8" fill="currentColor"/>
+            <circle cx="20" cy="12" r="8" fill="currentColor" />
+            <path d="M 6 26 L 6 92 L 24 92 L 24 56 L 56 92 L 74 92 L 74 26 L 56 26 L 56 62 L 24 26 Z" fill="currentColor" />
+            <path d="M 112 26 L 112 78 Q 112 92 126 92" stroke="currentColor" strokeWidth="18" fill="none" strokeLinecap="round" />
+            <rect x="88" y="52" width="42" height="14" fill="currentColor" />
+            <circle cx="122" cy="108" r="8" fill="currentColor" />
           </svg>
         </div>
 

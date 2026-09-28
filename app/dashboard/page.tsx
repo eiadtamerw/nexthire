@@ -31,6 +31,7 @@ type Candidate = {
   interviewTime: string;
   candidateStatus: string;
   notes: string;
+  owner: string;
 };
 
 type DashboardData = {
@@ -228,6 +229,7 @@ export default function DashboardPage() {
   const [filterNationality, setFilterNationality] = useState('all');
   const [filterOffer, setFilterOffer] = useState('all');
   const [filterStage, setFilterStage] = useState('all');
+  const [filterOwner, setFilterOwner] = useState('all');
   const [minScore, setMinScore] = useState(0);
   const [sortKey, setSortKey] = useState<SortKey>('newest');
   const [currentPage, setCurrentPage] = useState(1);
@@ -298,8 +300,15 @@ export default function DashboardPage() {
         map.set(c.appliedOfferId, c.appliedOfferTitle);
       }
     });
+    
     return Array.from(map.entries()).map(([id, title]) => ({ id, title }));
   }, [data]);
+  const ownerOptions = useMemo(() => {
+  if (!data) return [];
+  return Array.from(
+    new Set(data.candidates.map((c) => c.owner).filter(Boolean))
+  ).sort();
+}, [data]);
 
   const availableInterviewDates = useMemo(() => {
     if (!data) return [];
@@ -354,6 +363,8 @@ export default function DashboardPage() {
       list = list.filter((c) => c.appliedOfferId === filterOffer);
     if (filterStage !== 'all')
       list = list.filter((c) => (c.candidateStatus || 'New') === filterStage);
+    if (filterOwner !== 'all')
+    list = list.filter((c) => c.owner === filterOwner);
     if (minScore > 0) list = list.filter((c) => c.score >= minScore);
 
     switch (sortKey) {
@@ -403,6 +414,7 @@ export default function DashboardPage() {
     setFilterStage('all');
     setMinScore(0);
     setSortKey('newest');
+    setFilterOwner('all');
   }
 
   if (loading) {
@@ -548,6 +560,18 @@ export default function DashboardPage() {
                 </option>
               ))}
             </select>
+            <select
+              value={filterOwner}
+              onChange={(e) => setFilterOwner(e.target.value)}
+              className="filter-select"
+>
+              <option value="all">All Team Leaders</option>
+              {ownerOptions.map((o) => (
+              <option key={o} value={o}>
+                {o}
+              </option>
+  ))}
+</select>
 
             <select
               value={minScore}
@@ -1008,6 +1032,7 @@ function CandidatesTab({
             <th>#</th>
             <th>Name</th>
             <th>Applied For</th>
+            <th>Owner</th>
             <th>Phone</th>
             <th>Nationality</th>
             <th>Stage</th>
@@ -1031,6 +1056,27 @@ function CandidatesTab({
                   <strong>{c.tripleName}</strong>
                 </td>
                 <td>{c.appliedOfferTitle || '—'}</td>
+                <td>
+  {c.owner ? (
+    <span
+      style={{
+        display: 'inline-block',
+        padding: '3px 10px',
+        borderRadius: 999,
+        fontSize: 11,
+        fontWeight: 700,
+        background: 'rgba(59,130,246,0.15)',
+        color: '#93c5fd',
+        border: '1px solid rgba(59,130,246,0.35)',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {c.owner}
+    </span>
+  ) : (
+    <span style={{ color: 'var(--muted)', fontSize: 12 }}>—</span>
+  )}
+</td>
                 <td>{c.phone}</td>
                 <td>{c.nationality}</td>
                 <td>
@@ -1513,12 +1559,13 @@ function CandidateModal({
           name: 'Language',
           pass: lang.includes(String(o.requiredLanguage).toLowerCase()),
         });
-        if (o.requiredLevel) {
+        if (o.requiredLanguage) {
+          const lang = String(c.language || '').toLowerCase();
           checks.push({
-            name: 'Language Level',
-            pass: lang.includes(String(o.requiredLevel).toLowerCase()),
-          });
-        }
+          name: 'Language',
+          pass: lang.includes(String(o.requiredLanguage).toLowerCase()),
+  });
+}
       }
 
       const age = Number(c.age) || 0;

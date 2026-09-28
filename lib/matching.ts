@@ -90,15 +90,6 @@ export function evaluateCandidateForOffer(
     });
 
     // 3. Language Level
-    if (offer.requiredLevel) {
-      const reqLvl = String(offer.requiredLevel).toLowerCase();
-      const pass = langStr.includes(reqLvl);
-      checks.push({
-        name: 'Language Level',
-        pass,
-        detail: `${offer.requiredLevel}`,
-      });
-    }
   }
 
   // 4. Age

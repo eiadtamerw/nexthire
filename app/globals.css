@@ -2180,3 +2180,21 @@ body { animation: fadeIn 0.4s ease-out; }
     grid-template-columns: 1fr;
   }
 }
+.form-section select {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.form-section select:focus {
+  border-color: var(--neon);
+  box-shadow: 0 0 0 3px rgba(198, 232, 45, 0.15);
+  outline: none;
+}
+.nav-avatar {
+  overflow: hidden;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

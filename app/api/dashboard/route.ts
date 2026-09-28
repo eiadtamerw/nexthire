@@ -8,7 +8,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const stats = await getDashboardStats();
+    const stats = await getDashboardStats(session.role, session.username);
     return NextResponse.json({ ok: true, ...stats });
   } catch (e: any) {
     return NextResponse.json(

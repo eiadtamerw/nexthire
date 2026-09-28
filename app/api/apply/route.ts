@@ -11,7 +11,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // 1. Validation أساسي
     if (!body.tripleName || !body.nationalId || !body.phone) {
       return NextResponse.json(
         { ok: false, error: 'Missing required fields' },
@@ -31,7 +30,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. هات كل العروض
     const offers = await getOffersFromSheet();
     const targetOffer = offers.find(
       (o) => String(o.id) === String(body.appliedOfferId)
@@ -48,7 +46,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3. بناء كانديدت مؤقت للفحص
     const tempCandidate = {
       rowIndex: 0,
       tripleName: String(body.tripleName || ''),
@@ -75,9 +72,9 @@ export async function POST(request: Request) {
       interviewTime: String(body.interviewTime || ''),
       candidateStatus: 'New',
       notes: '',
+      owner: String(targetOffer.owner || ''),
     };
 
-    // 4. فحص التوافق مع العرض المختار
     const eligibility = evaluateCandidateForOffer(
       tempCandidate as any,
       targetOffer as any
@@ -100,7 +97,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // 5. احسب أفضل score مع كل العروض المفتوحة
     const openOffers = offers.filter(
       (o) => (o.status || '').toLowerCase() === 'open'
     );
@@ -110,7 +106,6 @@ export async function POST(request: Request) {
       if (ev.score > bestScore) bestScore = ev.score;
     });
 
-    // 6. احفظ في الشيت
     await addCandidateToSheet({
       tripleName: tempCandidate.tripleName,
       phone: tempCandidate.phone,
@@ -134,10 +129,10 @@ export async function POST(request: Request) {
       appliedOfferTitle: targetOffer.jobTitle,
       interviewTime: tempCandidate.interviewTime,
       score: bestScore,
+      owner: String(body.teamLeader || ''), // ⭐ التيم ليدر اللي الكانديدت اختاره
     });
 
-    // 7. ⭐ ابعت الإيميل للـ admin (متوقفش العملية لو فشل)
-        try {
+    try {
       await sendCandidateConfirmation({
         tripleName: tempCandidate.tripleName,
         phone: tempCandidate.phone,

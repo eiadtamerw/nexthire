@@ -8,6 +8,7 @@ export default function Nav() {
   const [isAuth, setIsAuth] = useState(false);
   const [username, setUsername] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const [profilePic, setProfilePic] = useState('');
   const [mounted, setMounted] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -21,10 +22,43 @@ export default function Nav() {
     setIsAuth(!!t && exp > Date.now());
     setUsername(u);
     setIsAdmin(localStorage.getItem('staffIsAdmin') === 'true');
+
+    setProfilePic(localStorage.getItem('staffProfilePic') || '');
+
     setMounted(true);
+
+    if (t && exp > Date.now()) {
+      fetch('/api/auth/check', {
+        headers: { Authorization: 'Bearer ' + t },
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok) {
+            if (data.profilePic !== undefined) {
+              setProfilePic(data.profilePic || '');
+              localStorage.setItem('staffProfilePic', data.profilePic || '');
+            }
+            if (data.role) {
+              setIsAdmin(data.role === 'admin');
+            }
+          }
+        })
+        .catch(() => {});
+    }
   }, [pathname]);
 
-  // اقفل أي قايمة مفتوحة لما يتغير المسار
+  useEffect(() => {
+    function onProfilePicUpdate(e: Event) {
+      const detail = (e as CustomEvent).detail;
+      if (detail && typeof detail === 'string') {
+        setProfilePic(detail);
+      }
+    }
+    window.addEventListener('profilePicUpdated', onProfilePicUpdate);
+    return () =>
+      window.removeEventListener('profilePicUpdated', onProfilePicUpdate);
+  }, []);
+
   useEffect(() => {
     setMenuOpen(false);
     setMobileOpen(false);
@@ -40,7 +74,6 @@ export default function Nav() {
     }
   }, [menuOpen]);
 
-  // امنع scroll الصفحة لما الـ mobile menu مفتوح
   useEffect(() => {
     if (mobileOpen) {
       document.body.style.overflow = 'hidden';
@@ -65,11 +98,28 @@ export default function Nav() {
     localStorage.removeItem('staffExpires');
     localStorage.removeItem('staffUsername');
     localStorage.removeItem('staffIsAdmin');
+    localStorage.removeItem('staffProfilePic');
     router.push('/');
     router.refresh();
   }
 
   const initial = username ? username.charAt(0).toUpperCase() : '?';
+
+  const AvatarContent = () =>
+    profilePic ? (
+      <img
+        src={profilePic}
+        alt={username}
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          borderRadius: '50%',
+        }}
+      />
+    ) : (
+      <>{initial}</>
+    );
 
   return (
     <nav className="nav">
@@ -78,8 +128,17 @@ export default function Nav() {
           <span className="brand-mark">
             <svg viewBox="0 0 130 115" fill="none">
               <circle cx="20" cy="12" r="8" fill="currentColor" />
-              <path d="M 6 26 L 6 92 L 24 92 L 24 56 L 56 92 L 74 92 L 74 26 L 56 26 L 56 62 L 24 26 Z" fill="currentColor" />
-              <path d="M 112 26 L 112 78 Q 112 92 126 92" stroke="currentColor" strokeWidth="18" fill="none" strokeLinecap="round" />
+              <path
+                d="M 6 26 L 6 92 L 24 92 L 24 56 L 56 92 L 74 92 L 74 26 L 56 26 L 56 62 L 24 26 Z"
+                fill="currentColor"
+              />
+              <path
+                d="M 112 26 L 112 78 Q 112 92 126 92"
+                stroke="currentColor"
+                strokeWidth="18"
+                fill="none"
+                strokeLinecap="round"
+              />
               <rect x="88" y="52" width="42" height="14" fill="currentColor" />
               <circle cx="122" cy="108" r="8" fill="currentColor" />
             </svg>
@@ -91,28 +150,62 @@ export default function Nav() {
 
         {/* Desktop links */}
         <div className="nav-links nav-links-desktop">
-          <Link href="/" className={pathname === '/' ? 'active' : ''}>Home</Link>
-          <Link href="/offers" className={pathname === '/offers' ? 'active' : ''}>Offers</Link>
-          <Link href="/contact" className={pathname === '/contact' ? 'active' : ''}>Contact</Link>
+          <Link href="/" className={pathname === '/' ? 'active' : ''}>
+            Home
+          </Link>
+          <Link
+            href="/offers"
+            className={pathname === '/offers' ? 'active' : ''}
+          >
+            Offers
+          </Link>
+          <Link
+            href="/contact"
+            className={pathname === '/contact' ? 'active' : ''}
+          >
+            Contact
+          </Link>
 
           {mounted && isAuth && (
-            <Link href="/dashboard" className={pathname === '/dashboard' ? 'active' : ''}>Dashboard</Link>
+            <Link
+              href="/dashboard"
+              className={pathname === '/dashboard' ? 'active' : ''}
+            >
+              Dashboard
+            </Link>
           )}
           {mounted && isAuth && (
-            <Link href="/matches" className={pathname === '/matches' ? 'active' : ''}>Matches</Link>
+            <Link
+              href="/matches"
+              className={pathname === '/matches' ? 'active' : ''}
+            >
+              Matches
+            </Link>
+          )}
+          {mounted && isAuth && (
+            <Link
+              href="/reminders"
+              className={pathname === '/reminders' ? 'active' : ''}
+            >
+              Reminders
+            </Link>
           )}
 
           {mounted && !isAuth && <Link href="/login">Login</Link>}
 
           {mounted && isAuth && (
-            <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+            <div
+              style={{ position: 'relative' }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <button
                 type="button"
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="nav-avatar"
                 title={username}
+                style={{ overflow: 'hidden', padding: 0 }}
               >
-                {initial}
+                <AvatarContent />
               </button>
 
               {menuOpen && (
@@ -129,7 +222,16 @@ export default function Nav() {
                     className="nav-avatar-menu-item"
                     onClick={() => setMenuOpen(false)}
                   >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <circle cx="12" cy="12" r="3" />
                       <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
                     </svg>
@@ -141,7 +243,16 @@ export default function Nav() {
                     className="nav-avatar-menu-item nav-avatar-menu-logout"
                     onClick={logoutNow}
                   >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <svg
+                      width="15"
+                      height="15"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
                       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
                       <polyline points="16 17 21 12 16 7" />
                       <line x1="21" y1="12" x2="9" y2="12" />
@@ -153,20 +264,26 @@ export default function Nav() {
             </div>
           )}
 
-          <Link href="/apply" className="btn btn-primary btn-sm">Apply Now</Link>
+          <Link href="/apply" className="btn btn-primary btn-sm">
+            Apply Now
+          </Link>
         </div>
 
         {/* Mobile: Avatar + Hamburger */}
         <div className="nav-mobile-actions">
           {mounted && isAuth && (
-            <div style={{ position: 'relative' }} onClick={(e) => e.stopPropagation()}>
+            <div
+              style={{ position: 'relative' }}
+              onClick={(e) => e.stopPropagation()}
+            >
               <button
                 type="button"
                 onClick={() => setMenuOpen(!menuOpen)}
                 className="nav-avatar"
                 title={username}
+                style={{ overflow: 'hidden', padding: 0 }}
               >
-                {initial}
+                <AvatarContent />
               </button>
 
               {menuOpen && (
@@ -203,12 +320,30 @@ export default function Nav() {
             aria-label="Menu"
           >
             {mobileOpen ? (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             ) : (
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <line x1="3" y1="6" x2="21" y2="6" />
                 <line x1="3" y1="12" x2="21" y2="12" />
                 <line x1="3" y1="18" x2="21" y2="18" />
@@ -221,20 +356,54 @@ export default function Nav() {
       {/* Mobile menu panel */}
       {mobileOpen && (
         <div className="nav-mobile-panel">
-          <Link href="/" className={pathname === '/' ? 'active' : ''}>Home</Link>
-          <Link href="/offers" className={pathname === '/offers' ? 'active' : ''}>Offers</Link>
-          <Link href="/contact" className={pathname === '/contact' ? 'active' : ''}>Contact</Link>
+          <Link href="/" className={pathname === '/' ? 'active' : ''}>
+            Home
+          </Link>
+          <Link
+            href="/offers"
+            className={pathname === '/offers' ? 'active' : ''}
+          >
+            Offers
+          </Link>
+          <Link
+            href="/contact"
+            className={pathname === '/contact' ? 'active' : ''}
+          >
+            Contact
+          </Link>
 
           {mounted && isAuth && (
-            <Link href="/dashboard" className={pathname === '/dashboard' ? 'active' : ''}>Dashboard</Link>
+            <Link
+              href="/dashboard"
+              className={pathname === '/dashboard' ? 'active' : ''}
+            >
+              Dashboard
+            </Link>
           )}
           {mounted && isAuth && (
-            <Link href="/matches" className={pathname === '/matches' ? 'active' : ''}>Matches</Link>
+            <Link
+              href="/matches"
+              className={pathname === '/matches' ? 'active' : ''}
+            >
+              Matches
+            </Link>
+          )}
+          {mounted && isAuth && (
+            <Link
+              href="/reminders"
+              className={pathname === '/reminders' ? 'active' : ''}
+            >
+              Reminders
+            </Link>
           )}
 
           {mounted && !isAuth && <Link href="/login">Login</Link>}
 
-          <Link href="/apply" className="btn btn-primary" style={{ marginTop: 12, textAlign: 'center' }}>
+          <Link
+            href="/apply"
+            className="btn btn-primary"
+            style={{ marginTop: 12, textAlign: 'center' }}
+          >
             Apply Now
           </Link>
         </div>

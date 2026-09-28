@@ -67,6 +67,7 @@ export async function getOffersFromSheet() {
         .split(/[|,;\n]+/)
         .map((s) => s.trim())
         .filter(Boolean),
+      owner: String(row[17] || ''), // ⭐ R
     }))
     .filter((o) => o.id && o.jobTitle);
 }
@@ -87,6 +88,7 @@ export async function addOfferToSheet(data: {
   status: string;
   acceptedStatuses: string;
   interviewSlots: string[];
+  owner?: string; // ⭐ جديد
 }) {
   const id = 'OFF-' + Date.now().toString().slice(-6);
   const now = new Date().toISOString().slice(0, 10);
@@ -109,6 +111,7 @@ export async function addOfferToSheet(data: {
     now,
     data.acceptedStatuses || '',
     (data.interviewSlots || []).join(' | '),
+    data.owner || '', // ⭐ R
   ]);
 
   return { id };
@@ -233,6 +236,7 @@ export async function addCandidateToSheet(data: {
   appliedOfferTitle: string;
   interviewTime: string;
   score?: number;
+  owner?: string;
 }) {
   const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
@@ -260,8 +264,9 @@ export async function addCandidateToSheet(data: {
     data.appliedOfferId,
     data.appliedOfferTitle,
     data.interviewTime,
-    'New',   // ⭐ Candidate Status
-    '',      // ⭐ Notes
+    'New',
+    '',
+    data.owner || '',
   ]);
 
   return { ok: true };
@@ -299,16 +304,22 @@ export async function getCandidatesFromSheet() {
       appliedOfferId: String(row[20] || ''),
       appliedOfferTitle: String(row[21] || ''),
       interviewTime: String(row[22] || ''),
-      candidateStatus: String(row[23] || 'New'),   // ⭐ جديد
-      notes: String(row[24] || ''),                 // ⭐ جديد
+      candidateStatus: String(row[23] || 'New'),
+      notes: String(row[24] || ''),
+      owner: String(row[25] || ''), // ⭐ Z
     }));
 }
 
-export async function getDashboardStats() {
-  const [candidates, offers] = await Promise.all([
+export async function getDashboardStats(role?: string, username?: string) {
+  let [candidates, offers] = await Promise.all([
     getCandidatesFromSheet(),
     getOffersFromSheet(),
   ]);
+
+  // لو تيم ليدر، يشوف بتاعه بس
+  if (role && role !== 'admin' && username) {
+    candidates = candidates.filter((c) => c.owner === username);
+  }
 
   const openOffers = offers.filter((o) => (o.status || '').toLowerCase() === 'open');
   const scheduled = candidates.filter((c) => c.interviewDate || c.interviewTime).length;
@@ -332,6 +343,9 @@ export async function getUsersFromSheet() {
     password_hash: String(row[1] || ''),
     salt: String(row[2] || ''),
     created_at: String(row[3] || ''),
+    role: String(row[4] || 'user'),      // E
+    profile_pic: String(row[5] || ''),   // F ⭐
+    theme: String(row[6] || 'neon'),     // G
   }));
 }
 
@@ -420,9 +434,20 @@ export async function getAuthUser(request: Request) {
   const auth = request.headers.get('authorization') || '';
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
   if (!token) return null;
-  return await findSession(token);
-}
-/**
+
+  const session = await findSession(token);
+  if (!session) return null;
+
+  const user = await findUser(session.username);
+  if (!user) return null;
+
+  return {
+    ...session,
+    role: user.role,
+    theme: user.theme,
+    profile_pic: user.profile_pic, // ⭐
+  };
+}/**
  * يحدّث باسورد مستخدم موجود (بالـ rowIndex أو بالـ username)
  */
 export async function updateUserPassword(
@@ -665,5 +690,115 @@ export async function clearLoginAttempts(identifier: string) {
     requestBody: { requests },
   });
 
+  return { ok: true };
+}
+export async function updateUserProfilePic(
+  username: string,
+  profilePic: string
+) {
+  const sheets = await getSheetsClient();
+  const rows = await readSheet('Users');
+  if (rows.length < 2) throw new Error('No users found');
+
+  let rowIndex = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0] || '').trim() === username.trim()) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+  if (rowIndex < 2) throw new Error('User not found');
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `Users!F${rowIndex}:F${rowIndex}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [[profilePic]] },
+  });
+
+  return { ok: true };
+}
+/* ============ TEMPLATES ============ */
+export async function getTemplatesFromSheet() {
+  const rows = await readSheet('Templates');
+  if (rows.length < 2) return [];
+  return rows
+    .slice(1)
+    .filter((r) => String(r[0] || '').trim() !== '')
+    .map((row) => ({
+      offerId: String(row[0] || ''),
+      offerTitle: String(row[1] || ''),
+      message: String(row[2] || ''),
+    }));
+}
+
+export async function saveTemplate(
+  offerId: string,
+  offerTitle: string,
+  message: string
+) {
+  const sheets = await getSheetsClient();
+  const rows = await readSheet('Templates');
+
+  let rowIndex = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0] || '').trim() === offerId.trim()) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+
+  if (rowIndex >= 2) {
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: SPREADSHEET_ID,
+      range: `Templates!B${rowIndex}:C${rowIndex}`,
+      valueInputOption: 'USER_ENTERED',
+      requestBody: { values: [[offerTitle, message]] },
+    });
+  } else {
+    await appendRow('Templates', [offerId, offerTitle, message]);
+  }
+
+  return { ok: true };
+}
+
+export async function deleteTemplate(offerId: string) {
+  const sheets = await getSheetsClient();
+  const rows = await readSheet('Templates');
+  let rowIndex = -1;
+  for (let i = 0; i < rows.length; i++) {
+    if (String(rows[i][0] || '').trim() === offerId.trim()) {
+      rowIndex = i + 1;
+      break;
+    }
+  }
+  if (rowIndex < 2) return { ok: true };
+
+  const spreadsheet = await sheets.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+  });
+  const tab = spreadsheet.data.sheets?.find(
+    (s) => s.properties?.title === 'Templates'
+  );
+  const sheetId = tab?.properties?.sheetId;
+  if (sheetId === undefined || sheetId === null) return { ok: false };
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SPREADSHEET_ID,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex - 1,
+              endIndex: rowIndex,
+            },
+          },
+        },
+      ],
+    },
+  });
   return { ok: true };
 }

@@ -1,18 +1,18 @@
 import { NextResponse } from 'next/server';
-import { findSession } from '../../../../lib/sheets';
+import { getAuthUser } from '../../../../lib/sheets';
 
 export async function GET(request: Request) {
-  const auth = request.headers.get('authorization') || '';
-  const token = auth.startsWith('Bearer ') ? auth.slice(7) : null;
+  const session = await getAuthUser(request);
 
-  if (!token) {
-    return NextResponse.json({ ok: false });
-  }
-
-  const session = await findSession(token);
   if (!session) {
     return NextResponse.json({ ok: false });
   }
 
-  return NextResponse.json({ ok: true, username: session.username });
+  return NextResponse.json({
+    ok: true,
+    username: session.username,
+    role: session.role || 'user',
+    theme: session.theme || 'neon',
+    profilePic: session.profile_pic || '', // ⭐
+  });
 }

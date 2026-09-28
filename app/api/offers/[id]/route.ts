@@ -14,6 +14,11 @@ export async function PUT(
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
+  // ⭐ التيم ليدر ممنوع يعدل
+  if (session.role !== 'admin') {
+    return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const { id } = await params;
     const rowIndex = Number(id);
@@ -59,6 +64,11 @@ export async function DELETE(
   const session = await getAuthUser(request);
   if (!session) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // ⭐ التيم ليدر ممنوع يمسح
+  if (session.role !== 'admin') {
+    return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   }
 
   try {

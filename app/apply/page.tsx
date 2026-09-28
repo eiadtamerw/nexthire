@@ -33,6 +33,7 @@ export default function ApplyPage() {
     companyName: '',
     vocaroo: '',
     cv: '',
+    teamLeader: '',
   });
 
   const [languages, setLanguages] = useState([{ lang: '', lvl: '' }]);
@@ -40,6 +41,8 @@ export default function ApplyPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [offers, setOffers] = useState<Offer[]>([]);
+  const [teamLeaders, setTeamLeaders] = useState<{ username: string }[]>([]);
+  const [selectedTeamLeader, setSelectedTeamLeader] = useState('');
   const [offersLoading, setOffersLoading] = useState(true);
 
   useEffect(() => {
@@ -55,7 +58,16 @@ export default function ApplyPage() {
       })
       .catch((e) => console.error('Failed to load offers:', e))
       .finally(() => setOffersLoading(false));
+
+          fetch('/api/team-leaders')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) setTeamLeaders(data.teamLeaders);
+      })
+      .catch((e) => console.error('Failed to load team leaders:', e));
+
   }, []);
+  
 
   function updateField(name: string, value: string) {
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -129,6 +141,10 @@ export default function ApplyPage() {
       setError('Vocaroo link is required.');
       return;
     }
+     if (!formData.teamLeader) {
+      setError('Please select your team leader.');
+      return;
+    }
 
     const langParts: string[] = [];
     languages.forEach((l) => {
@@ -197,6 +213,7 @@ export default function ApplyPage() {
       companyName: '',
       vocaroo: '',
       cv: '',
+      teamLeader: '',
     });
     setLanguages([{ lang: '', lvl: '' }]);
     setSubmitted(false);
@@ -619,6 +636,68 @@ export default function ApplyPage() {
             />
           </div>
         </div>
+                {/* ⭐ Team Leader Selection */}
+        <div
+          className="form-section"
+          style={{
+            border: '1px solid var(--neon)',
+            boxShadow: '0 0 20px rgba(198,232,45,0.15)',
+            background:
+              'linear-gradient(180deg, rgba(198,232,45,0.06), rgba(198,232,45,0.01))',
+          }}
+        >
+           <h3 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--neon)"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="8.5" cy="7" r="4" />
+              <polyline points="17 11 19 13 23 9" />
+            </svg>
+            Your Team Leader
+          </h3>
+          <p
+            style={{
+              fontSize: 13,
+              color: 'var(--muted)',
+              marginBottom: 12,
+              marginTop: -4,
+            }}
+          >
+            Choose the team leader you are applying with.
+          </p>
+
+          <div className="field" style={{ marginBottom: 0 }}>
+            <select
+              value={selectedTeamLeader}
+              onChange={(e) => {
+                setSelectedTeamLeader(e.target.value);
+                updateField('teamLeader', e.target.value);
+              }}
+              required
+              style={{
+                fontSize: 15,
+                fontWeight: 600,
+                padding: '14px 16px',
+              }}
+            >
+              <option value="">Select your team leader…</option>
+              {teamLeaders.map((tl) => (
+                <option key={tl.username} value={tl.username}>
+                   {tl.username}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-lg" disabled={loading}>

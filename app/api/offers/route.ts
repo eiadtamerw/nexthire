@@ -23,6 +23,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
 
+  if (session.role !== 'admin') {
+    return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
+  }
+
   try {
     const body = await request.json();
     if (!body.jobTitle || !body.companyName) {
@@ -48,6 +52,7 @@ export async function POST(request: Request) {
       status: body.status || 'Open',
       acceptedStatuses: body.acceptedStatuses || '',
       interviewSlots: Array.isArray(body.interviewSlots) ? body.interviewSlots : [],
+      owner: body.owner || session.username, // ⭐ R
     });
 
     return NextResponse.json({ ok: true, id: result.id });

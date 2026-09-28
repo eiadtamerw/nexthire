@@ -464,11 +464,11 @@ export default function DashboardPage() {
         >
           Analytics
         </button>
-        <button
+                <button
           className={'tab' + (activeTab === 'offers' ? ' on' : '')}
           onClick={() => setActiveTab('offers')}
         >
-          Offers ({data.openOffers})
+          Offers ({data.openOffers} open / {data.totalOffers} total)
         </button>
       </div>
 
@@ -1139,56 +1139,305 @@ function CandidatesTab({
 
 /* ============ OFFERS TAB ============ */
 function OffersTab({ offers }: { offers: any[] }) {
+  const [selectedOffer, setSelectedOffer] = useState<any | null>(null);
+
   if (offers.length === 0) {
     return (
       <div style={{ padding: 60, textAlign: 'center', color: 'var(--muted)' }}>
-        <p>No open offers yet.</p>
+        <p>No offers yet.</p>
       </div>
     );
   }
 
+  const sorted = [...offers].sort((a, b) => {
+    const aClosed = (a.status || '').toLowerCase() === 'closed' ? 1 : 0;
+    const bClosed = (b.status || '').toLowerCase() === 'closed' ? 1 : 0;
+    return aClosed - bClosed;
+  });
+
   return (
-    <div className="grid grid-3">
-      {offers.map((o) => (
-        <div key={o.id} className="card offer-card">
-          <h3 style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>
-            {o.jobTitle}
-          </h3>
-          <div
+    <>
+      <div className="grid grid-3">
+        {sorted.map((o) => {
+          const isClosed = (o.status || '').toLowerCase() === 'closed';
+
+          return (
+            <div
+              key={o.id}
+              className="card offer-card"
+              onClick={() => setSelectedOffer(o)}
+              style={{
+                position: 'relative',
+                cursor: 'pointer',
+                border: isClosed
+                  ? '1px solid rgba(239,68,68,0.45)'
+                  : '1px solid rgba(198,232,45,0.25)',
+                background: isClosed
+                  ? 'linear-gradient(180deg, rgba(239,68,68,0.08), rgba(239,68,68,0.02))'
+                  : undefined,
+                opacity: isClosed ? 0.85 : 1,
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {isClosed && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 12,
+                    right: 12,
+                    padding: '4px 12px',
+                    borderRadius: 999,
+                    fontSize: 10,
+                    fontWeight: 900,
+                    letterSpacing: '0.08em',
+                    textTransform: 'uppercase',
+                    background: 'rgba(239,68,68,0.2)',
+                    color: '#ff6b6b',
+                    border: '1px solid rgba(239,68,68,0.5)',
+                  }}
+                >
+                  Closed
+                </div>
+              )}
+
+              <h3
+                style={{
+                  fontSize: 16,
+                  fontWeight: 700,
+                  marginBottom: 4,
+                  paddingRight: isClosed ? 90 : 0,
+                  color: isClosed ? '#ff8f8f' : 'inherit',
+                }}
+              >
+                {o.jobTitle}
+              </h3>
+              <div
+                style={{
+                  color: isClosed ? 'rgba(255,143,143,0.7)' : 'var(--neon)',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  marginBottom: 14,
+                }}
+              >
+                {o.companyName}
+              </div>
+              <div className="offer-meta">
+                {o.site && <span>{o.site}</span>}
+                {o.requiredLanguage && <span>{o.requiredLanguage}</span>}
+                {(o.minAge || o.maxAge) && (
+                  <span>
+                    {o.minAge}–{o.maxAge}
+                  </span>
+                )}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 14,
+                  fontSize: 11,
+                  color: 'var(--muted)',
+                }}
+              >
+                Click for details →
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {selectedOffer && (
+        <OfferModal
+          offer={selectedOffer}
+          onClose={() => setSelectedOffer(null)}
+        />
+      )}
+    </>
+  );
+}
+/* ============ OFFER MODAL ============ */
+function OfferModal({
+  offer,
+  onClose,
+}: {
+  offer: any;
+  onClose: () => void;
+}) {
+  const isClosed = (offer.status || '').toLowerCase() === 'closed';
+
+  return (
+    <div
+      className="modal-back on"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div className="modal" style={{ maxWidth: 700 }}>
+        <div className="modal-head">
+          <div>
+            <h3>{offer.jobTitle}</h3>
+            <p style={{ color: 'var(--muted)', fontSize: 13, marginTop: 4 }}>
+              {offer.companyName}
+            </p>
+          </div>
+          <button className="modal-close" onClick={onClose}>
+            ×
+          </button>
+        </div>
+
+        <div style={{ marginBottom: 20 }}>
+          <span
             style={{
-              color: 'var(--neon)',
-              fontSize: 13,
-              fontWeight: 700,
-              marginBottom: 14,
+              display: 'inline-block',
+              padding: '5px 12px',
+              borderRadius: 999,
+              fontSize: 11,
+              fontWeight: 800,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              background: isClosed
+                ? 'rgba(239,68,68,0.15)'
+                : 'rgba(198,232,45,0.15)',
+              color: isClosed ? '#ff6b6b' : 'var(--neon)',
+              border: isClosed
+                ? '1px solid rgba(239,68,68,0.4)'
+                : '1px solid rgba(198,232,45,0.4)',
             }}
           >
-            {o.companyName}
+            {isClosed ? 'Closed' : 'Open'}
+          </span>
+        </div>
+
+        {offer.description && (
+          <div
+            style={{
+              background: 'var(--bg-2)',
+              border: '1px solid var(--border)',
+              borderRadius: 12,
+              padding: 18,
+              marginBottom: 20,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                color: 'var(--neon)',
+                marginBottom: 10,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+              }}
+            >
+              Description
+            </div>
+            <p
+              style={{
+                fontSize: 14,
+                lineHeight: 1.6,
+                whiteSpace: 'pre-wrap',
+                margin: 0,
+              }}
+            >
+              {offer.description}
+            </p>
           </div>
-          <div className="offer-meta">
-            {o.site && <span>{o.site}</span>}
-            {o.requiredLanguage && (
-              <span>
-                {o.requiredLanguage}
-                {o.requiredLevel && ` · ${o.requiredLevel}`}
-              </span>
-            )}
-            {(o.minAge || o.maxAge) && (
-              <span>
-                {o.minAge}–{o.maxAge}
-              </span>
-            )}
+        )}
+
+        <div
+          style={{
+            background: 'var(--bg-2)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            padding: '8px 18px',
+            marginBottom: 20,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              color: 'var(--neon)',
+              marginBottom: 4,
+              marginTop: 10,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+            }}
+          >
+            Details
           </div>
-          {o.interviewSlots && o.interviewSlots.length > 0 && (
-            <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {o.interviewSlots.map((s: string, i: number) => (
+          {[
+            ['Site', offer.site],
+            ['Nationality', offer.requiredNationality],
+            ['Language', offer.requiredLanguage],
+            ['Level', offer.requiredLevel],
+            ['Experience', offer.minExperience],
+            ['Age Range',
+              offer.minAge || offer.maxAge
+                ? `${offer.minAge || '—'} – ${offer.maxAge || '—'}`
+                : ''],
+            ['Gender', offer.gender],
+            ['Military', offer.militaryStatus],
+            ['Graduation', offer.acceptedStatuses],
+            ['Created', offer.createdAt],
+          ]
+            .filter(([, v]) => v && String(v).trim())
+            .map(([k, v]) => (
+              <div
+                key={String(k)}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '10px 0',
+                  borderBottom: '1px solid var(--border)',
+                  fontSize: 13,
+                  gap: 12,
+                }}
+              >
+                <span style={{ color: 'var(--muted)' }}>{k}</span>
+                <span style={{ fontWeight: 600, textAlign: 'right' }}>
+                  {v}
+                </span>
+              </div>
+            ))}
+        </div>
+
+        {offer.interviewSlots && offer.interviewSlots.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                color: 'var(--neon)',
+                marginBottom: 10,
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+              }}
+            >
+              Interview Slots
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {offer.interviewSlots.map((s: string, i: number) => (
                 <span key={i} className="offer-slot-chip">
                   {s}
                 </span>
               ))}
             </div>
-          )}
+          </div>
+        )}
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginTop: 10,
+          }}
+        >
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={onClose}
+          >
+            Close
+          </button>
         </div>
-      ))}
+      </div>
     </div>
   );
 }

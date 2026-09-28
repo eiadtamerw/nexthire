@@ -321,8 +321,12 @@ export async function getDashboardStats(role?: string, username?: string) {
     candidates = candidates.filter((c) => c.owner === username);
   }
 
-  const openOffers = offers.filter((o) => (o.status || '').toLowerCase() === 'open');
-  const scheduled = candidates.filter((c) => c.interviewDate || c.interviewTime).length;
+  const openOffers = offers.filter(
+    (o) => (o.status || '').toLowerCase() === 'open'
+  );
+  const scheduled = candidates.filter(
+    (c) => c.interviewDate || c.interviewTime
+  ).length;
 
   return {
     totalCandidates: candidates.length,
@@ -330,9 +334,11 @@ export async function getDashboardStats(role?: string, username?: string) {
     openOffers: openOffers.length,
     scheduledInterviews: scheduled,
     candidates: candidates.slice().reverse().slice(0, 50),
-    offers: openOffers,
+    offers, // ⭐ كل الأوفرز (مش المفتوحة بس)
   };
 }
+
+
 
 /* ============ AUTH: USERS ============ */
 export async function getUsersFromSheet() {

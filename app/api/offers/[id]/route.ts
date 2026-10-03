@@ -46,6 +46,10 @@ export async function PUT(
       status: body.status || 'Open',
       acceptedStatuses: body.acceptedStatuses || '',
       interviewSlots: Array.isArray(body.interviewSlots) ? body.interviewSlots : [],
+       owner: body.owner,
+      commission: Number(body.commission) || 0,
+      period: Number(body.period) || 0,
+      
     });
 
     return NextResponse.json({ ok: true });

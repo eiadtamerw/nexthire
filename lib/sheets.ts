@@ -67,9 +67,58 @@ export async function getOffersFromSheet() {
         .split(/[|,;\n]+/)
         .map((s) => s.trim())
         .filter(Boolean),
-      owner: String(row[17] || ''), // ⭐ R
+      owner: String(row[17] || ''),
+      commission: Number(row[18]) || 0,
+      period: Number(row[19]) || 0,
     }))
     .filter((o) => o.id && o.jobTitle);
+}
+export async function addFinanceToSheet(data: {
+  interviewDateTime: string;
+  candidateName: string;
+  teamLeader: string;
+  recruiter: string;
+  offer: string;
+  hiredDate: string;
+  periodDays: number;
+  totalCommission: number;
+  status: string;
+  notes: string;
+}) {
+  const id = 'FIN-' + Date.now().toString().slice(-6);
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  const tlCommission = Math.round(data.totalCommission * 0.1657);
+  const recruiterCommission = Math.round(data.totalCommission * 0.3343);
+
+  let collectionDate = '';
+  if (data.hiredDate && data.periodDays > 0) {
+    const d = new Date(data.hiredDate + 'T00:00:00');
+    if (!isNaN(d.getTime())) {
+      d.setDate(d.getDate() + data.periodDays);
+      collectionDate = d.toISOString().slice(0, 10);
+    }
+  }
+
+  await appendRow('Finance', [
+    id,
+    data.interviewDateTime || '',
+    data.candidateName || '',
+    data.teamLeader || '',
+    data.recruiter || '',
+    data.offer || '',
+    data.hiredDate || '',
+    String(data.periodDays || 0),
+    collectionDate,
+    String(data.totalCommission || 0),
+    String(tlCommission),
+    String(recruiterCommission),
+    data.status || 'Pending',
+    data.notes || '',
+    now,
+  ]);
+
+  return { id };
 }
 
 export async function addOfferToSheet(data: {
@@ -88,7 +137,9 @@ export async function addOfferToSheet(data: {
   status: string;
   acceptedStatuses: string;
   interviewSlots: string[];
-  owner?: string; // ⭐ جديد
+  owner?: string;
+  commission?: number;
+  period?: number;
 }) {
   const id = 'OFF-' + Date.now().toString().slice(-6);
   const now = new Date().toISOString().slice(0, 10);
@@ -111,7 +162,9 @@ export async function addOfferToSheet(data: {
     now,
     data.acceptedStatuses || '',
     (data.interviewSlots || []).join(' | '),
-    data.owner || '', // ⭐ R
+    data.owner || '',
+    String(data.commission || 0),
+    String(data.period || 0),
   ]);
 
   return { id };
@@ -135,43 +188,48 @@ export async function updateOfferInSheet(
     status: string;
     acceptedStatuses: string;
     interviewSlots: string[];
+    owner?: string;
+    commission?: number;
+    period?: number;
   }
 ) {
   const sheets = await getSheetsClient();
-
   const current = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
-    range: `Offers!A${rowIndex}:O${rowIndex}`,
+    range: `Offers!A${rowIndex}:T${rowIndex}`,
   });
   const currentRow = current.data.values?.[0] || [];
   const id = String(currentRow[0] || '');
   const createdAt = String(currentRow[14] || '');
 
-  const row = [
-    id,
-    data.jobTitle,
-    data.companyName,
-    data.site,
-    data.requiredNationality || 'Any',
-    data.requiredLanguage,
-    data.requiredLevel,
-    data.minAge,
-    data.maxAge,
-    data.gender || 'Any',
-    data.militaryStatus || 'Any',
-    data.minExperience || '0',
-    data.description,
-    data.status || 'Open',
-    createdAt,
-    data.acceptedStatuses || '',
-    (data.interviewSlots || []).join(' | '),
-  ];
-
   await sheets.spreadsheets.values.update({
     spreadsheetId: SPREADSHEET_ID,
-    range: `Offers!A${rowIndex}:Q${rowIndex}`,
+    range: `Offers!A${rowIndex}:T${rowIndex}`,
     valueInputOption: 'USER_ENTERED',
-    requestBody: { values: [row] },
+    requestBody: {
+      values: [[
+        id,
+        data.jobTitle,
+        data.companyName,
+        data.site,
+        data.requiredNationality || 'Any',
+        data.requiredLanguage,
+        data.requiredLevel,
+        data.minAge,
+        data.maxAge,
+        data.gender || 'Any',
+        data.militaryStatus || 'Any',
+        data.minExperience || '0',
+        data.description,
+        data.status || 'Open',
+        createdAt,
+        data.acceptedStatuses || '',
+        (data.interviewSlots || []).join(' | '),
+        data.owner || '',
+        String(data.commission || 0),
+        String(data.period || 0),
+      ]],
+    },
   });
 
   return { ok: true };
@@ -788,6 +846,229 @@ export async function deleteTemplate(offerId: string) {
   );
   const sheetId = tab?.properties?.sheetId;
   if (sheetId === undefined || sheetId === null) return { ok: false };
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SPREADSHEET_ID,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex - 1,
+              endIndex: rowIndex,
+            },
+          },
+        },
+      ],
+    },
+  });
+  return { ok: true };
+}
+/* ============ FINANCE (auto) ============ */
+/* ============ FINANCE ============ */
+const FINANCE_ACCESS = ['eiad', 'marwan'];
+
+export function hasFinanceAccess(username: string): boolean {
+  return FINANCE_ACCESS.map((u) => u.toLowerCase()).includes(
+    String(username || '').toLowerCase()
+  );
+}
+
+export async function addFinanceFromCandidate(data: {
+  interviewDate: string;
+  interviewTime: string;
+  candidateName: string;
+  teamLeader: string;
+  offerTitle: string;
+  offerId: string;
+  hiredDate: string;
+  notes?: string;
+}) {
+  const id = 'FIN-' + Date.now().toString().slice(-6);
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+
+  // هات الأوفر عشان ناخد commission + period
+  const offers = await getOffersFromSheet();
+  const offer = offers.find((o) => String(o.id) === String(data.offerId));
+  const commission = Number(offer?.commission) || 0;
+  const periodDays = Number(offer?.period) || 0;
+
+  // الحسابات
+  const totalCommission = commission;
+  const tlCommission = Math.round(commission * 0.1657);
+  const recruiterCommission = Math.round(commission * 0.3343);
+
+  // تاريخ التحصيل = Hired Date + Period
+  let collectionDate = '';
+  if (data.hiredDate && periodDays > 0) {
+    const d = new Date(data.hiredDate + 'T00:00:00');
+    d.setDate(d.getDate() + periodDays);
+    collectionDate = d.toISOString().slice(0, 10);
+  }
+
+  // اجمع التاريخ والوقت
+  const interviewDateTime = data.interviewDate
+    ? `${data.interviewDate}${data.interviewTime ? ' ' + data.interviewTime : ''}`
+    : data.interviewTime || '';
+
+  await appendRow('Finance', [
+    id,
+    interviewDateTime,
+    data.candidateName || '',
+    data.teamLeader || '',
+    '', // Recruiter (تملأه يدوي)
+    data.offerTitle || '',
+    data.hiredDate || '',
+    String(periodDays),
+    collectionDate,
+    String(totalCommission),
+    String(tlCommission),
+    String(recruiterCommission),
+    'Pending',
+    data.notes || '',
+    now,
+  ]);
+
+  return { id };
+}
+
+export async function getFinanceFromSheet() {
+  const rows = await readSheet('Finance');
+  if (rows.length < 2) return [];
+
+  return rows
+    .slice(1)
+    .filter((row) => String(row[0] || '').trim() !== '')
+    .map((row, i) => ({
+      rowIndex: i + 2,
+      id: String(row[0] || ''),
+      interviewDateTime: String(row[1] || ''),
+      candidateName: String(row[2] || ''),
+      teamLeader: String(row[3] || ''),
+      recruiter: String(row[4] || ''),
+      offer: String(row[5] || ''),
+      hiredDate: String(row[6] || ''),
+      periodDays: Number(row[7]) || 0,
+      collectionDate: String(row[8] || ''),
+      totalCommission: Number(row[9]) || 0,
+      tlCommission: Number(row[10]) || 0,
+      recruiterCommission: Number(row[11]) || 0,
+      status: String(row[12] || 'Pending'),
+      notes: String(row[13] || ''),
+      createdAt: String(row[14] || ''),
+    }));
+}
+
+export async function updateFinanceInSheet(
+  rowIndex: number,
+  data: {
+    recruiter?: string;
+    status?: string;
+    notes?: string;
+  }
+) {
+  const sheets = await getSheetsClient();
+  const current = await sheets.spreadsheets.values.get({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `Finance!A${rowIndex}:O${rowIndex}`,
+  });
+  const row = current.data.values?.[0] || [];
+
+  if (data.recruiter !== undefined) row[4] = data.recruiter;
+  if (data.status !== undefined) row[12] = data.status;
+  if (data.notes !== undefined) row[13] = data.notes;
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: `Finance!A${rowIndex}:O${rowIndex}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [row] },
+  });
+
+  return { ok: true };
+}
+
+export async function deleteFinanceFromSheet(rowIndex: number) {
+  const sheets = await getSheetsClient();
+  const spreadsheet = await sheets.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+  });
+  const tab = spreadsheet.data.sheets?.find(
+    (s) => s.properties?.title === 'Finance'
+  );
+  const sheetId = tab?.properties?.sheetId;
+  if (sheetId === undefined || sheetId === null) {
+    throw new Error('Finance sheet not found');
+  }
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: SPREADSHEET_ID,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: 'ROWS',
+              startIndex: rowIndex - 1,
+              endIndex: rowIndex,
+            },
+          },
+        },
+      ],
+    },
+  });
+  return { ok: true };
+}
+/* ============ EXPENSES ============ */
+export async function getExpensesFromSheet() {
+  const rows = await readSheet('Expenses');
+  if (rows.length < 2) return [];
+  return rows
+    .slice(1)
+    .filter((row) => String(row[0] || '').trim() !== '')
+    .map((row, i) => ({
+      rowIndex: i + 2,
+      id: String(row[0] || ''),
+      date: String(row[1] || ''),
+      description: String(row[2] || ''),
+      amount: Number(row[3]) || 0,
+      category: String(row[4] || 'Other'),
+      createdAt: String(row[5] || ''),
+    }));
+}
+
+export async function addExpenseToSheet(data: {
+  date: string;
+  description: string;
+  amount: number;
+  category: string;
+}) {
+  const id = 'EXP-' + Date.now().toString().slice(-6);
+  const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
+  await appendRow('Expenses', [
+    id,
+    data.date || now.slice(0, 10),
+    data.description || '',
+    String(data.amount || 0),
+    data.category || 'Other',
+    now,
+  ]);
+  return { id };
+}
+
+export async function deleteExpenseFromSheet(rowIndex: number) {
+  const sheets = await getSheetsClient();
+  const spreadsheet = await sheets.spreadsheets.get({
+    spreadsheetId: SPREADSHEET_ID,
+  });
+  const tab = spreadsheet.data.sheets?.find(
+    (s) => s.properties?.title === 'Expenses'
+  );
+  const sheetId = tab?.properties?.sheetId;
+  if (sheetId === undefined || sheetId === null) throw new Error('Expenses not found');
 
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: SPREADSHEET_ID,

@@ -5,10 +5,20 @@ import {
   getAuthUser,
 } from '../../../lib/sheets';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const session = await getAuthUser(request);
     const offers = await getOffersFromSheet();
-    return NextResponse.json({ ok: true, offers });
+
+    // ⭐ اخفي commission + period من غير الأدمن
+    const isAdmin = session?.role === 'admin';
+    const safeOffers = offers.map((o: any) => {
+      if (isAdmin) return o;
+      const { commission, period, ...rest } = o;
+      return rest;
+    });
+
+    return NextResponse.json({ ok: true, offers: safeOffers });
   } catch (e: any) {
     return NextResponse.json(
       { ok: false, error: e.message || 'Failed to fetch offers' },
@@ -22,7 +32,6 @@ export async function POST(request: Request) {
   if (!session) {
     return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 });
   }
-
   if (session.role !== 'admin') {
     return NextResponse.json({ ok: false, error: 'Forbidden' }, { status: 403 });
   }
@@ -52,7 +61,9 @@ export async function POST(request: Request) {
       status: body.status || 'Open',
       acceptedStatuses: body.acceptedStatuses || '',
       interviewSlots: Array.isArray(body.interviewSlots) ? body.interviewSlots : [],
-      owner: body.owner || session.username, // ⭐ R
+      owner: body.owner || session.username,
+      commission: Number(body.commission) || 0,
+      period: Number(body.period) || 0,
     });
 
     return NextResponse.json({ ok: true, id: result.id });

@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
+const FINANCE_USERS = ['eiad', 'marwan'];
+
 export default function Nav() {
   const [isAuth, setIsAuth] = useState(false);
   const [username, setUsername] = useState('');
@@ -14,6 +16,10 @@ export default function Nav() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+
+  const hasFinance = FINANCE_USERS.map((u) => u.toLowerCase()).includes(
+    username.toLowerCase()
+  );
 
   useEffect(() => {
     const t = localStorage.getItem('staffToken');
@@ -174,13 +180,23 @@ export default function Nav() {
               Dashboard
             </Link>
           )}
-          
+
           {mounted && isAuth && (
             <Link
               href="/reminders"
               className={pathname === '/reminders' ? 'active' : ''}
             >
               Reminders
+            </Link>
+          )}
+
+          {/* ⭐ Finance - للأدمن eiad و marwan بس */}
+          {mounted && isAuth && hasFinance && (
+            <Link
+              href="/finance"
+              className={pathname === '/finance' ? 'active' : ''}
+            >
+              Finance
             </Link>
           )}
 
@@ -373,13 +389,23 @@ export default function Nav() {
               Dashboard
             </Link>
           )}
-          
+
           {mounted && isAuth && (
             <Link
               href="/reminders"
               className={pathname === '/reminders' ? 'active' : ''}
             >
               Reminders
+            </Link>
+          )}
+
+          {/* ⭐ Finance - للموبايل */}
+          {mounted && isAuth && hasFinance && (
+            <Link
+              href="/finance"
+              className={pathname === '/finance' ? 'active' : ''}
+            >
+              Finance
             </Link>
           )}
 

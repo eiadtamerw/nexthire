@@ -22,6 +22,8 @@ type Offer = {
   createdAt: string;
   acceptedStatuses: string;
   interviewSlots: string[];
+  commission?: number;
+  period?: number;
 };
 
 const emptyForm = {
@@ -40,6 +42,8 @@ const emptyForm = {
   status: 'Open',
   acceptedStatuses: '',
   interviewSlots: [''],
+  commission: '0',
+  period: '0',
 };
 
 /* ============ SVG ICONS ============ */
@@ -121,11 +125,13 @@ export default function OffersPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
+  const [isAdmin, setIsAdmin] = useState(false);
 
-  useEffect(() => {
+    useEffect(() => {
     const t = localStorage.getItem('staffToken');
     const exp = Number(localStorage.getItem('staffExpires') || 0);
     setIsAuth(!!t && exp > Date.now());
+    setIsAdmin(localStorage.getItem('staffIsAdmin') === 'true');
     loadOffers();
   }, []);
 
@@ -168,6 +174,8 @@ export default function OffersPage() {
       status: o.status || 'Open',
       acceptedStatuses: o.acceptedStatuses,
       interviewSlots: o.interviewSlots.length ? o.interviewSlots : [''],
+      commission: String(o.commission ?? 0),
+      period: String(o.period ?? 0),
     });
     setModalOpen(true);
   }
@@ -207,7 +215,12 @@ export default function OffersPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const slots = form.interviewSlots.map((s) => s.trim()).filter(Boolean);
-    const payload = { ...form, interviewSlots: slots };
+        const payload = {
+      ...form,
+      interviewSlots: slots,
+      commission: Number(form.commission) || 0,
+      period: Number(form.period) || 0,
+    };
 
     try {
       const token = localStorage.getItem('staffToken');
@@ -433,6 +446,7 @@ export default function OffersPage() {
           })}
         </div>
       )}
+      
 
       {modalOpen && (
         <div
@@ -459,7 +473,39 @@ export default function OffersPage() {
                   required
                 />
               </div>
-
+                            {isAdmin && (
+                <div
+                  className="field-row"
+                  style={{
+                    padding: 14,
+                    border: '1px solid rgba(198,232,45,0.3)',
+                    borderRadius: 10,
+                    background: 'rgba(198,232,45,0.04)',
+                    marginBottom: 14,
+                  }}
+                >
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label>Commission (EGP)</label>
+                    <input
+                      type="number"
+                      value={form.commission}
+                      onChange={(e) => updateField('commission', e.target.value)}
+                      min={0}
+                      placeholder="e.g. 4000"
+                    />
+                  </div>
+                  <div className="field" style={{ marginBottom: 0 }}>
+                    <label>Collection Period (Days)</label>
+                    <input
+                      type="number"
+                      value={form.period}
+                      onChange={(e) => updateField('period', e.target.value)}
+                      min={0}
+                      placeholder="e.g. 45"
+                    />
+                  </div>
+                </div>
+              )}
               <div className="field-row">
                 <div className="field">
                   <label>

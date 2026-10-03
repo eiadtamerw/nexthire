@@ -174,14 +174,7 @@ export default function Nav() {
               Dashboard
             </Link>
           )}
-          {mounted && isAuth && (
-            <Link
-              href="/matches"
-              className={pathname === '/matches' ? 'active' : ''}
-            >
-              Matches
-            </Link>
-          )}
+          
           {mounted && isAuth && (
             <Link
               href="/reminders"
@@ -380,14 +373,7 @@ export default function Nav() {
               Dashboard
             </Link>
           )}
-          {mounted && isAuth && (
-            <Link
-              href="/matches"
-              className={pathname === '/matches' ? 'active' : ''}
-            >
-              Matches
-            </Link>
-          )}
+          
           {mounted && isAuth && (
             <Link
               href="/reminders"
